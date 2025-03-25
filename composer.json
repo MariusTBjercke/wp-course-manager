@@ -1,0 +1,11 @@
+{
+    "name": "mariustbjercke/wp-course-manager",
+    "description": "A WordPress plugin for managing and enrolling in courses.",
+    "type": "project",
+    "autoload": {
+        "psr-4": {
+            "CourseManager\\": "includes/"
+        }
+    },
+    "require": {}
+}
