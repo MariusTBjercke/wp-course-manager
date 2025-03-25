@@ -12,7 +12,7 @@ class Log {
      * @param string $msg The message to log.
      * @return void
      */
-    public static function log(string $msg): void {
+    public static function error(string $msg): void {
         error_log('[CourseManager] ' . $msg);
     }
 }

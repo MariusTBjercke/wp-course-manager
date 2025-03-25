@@ -32,7 +32,7 @@ class Template {
             }
         }
 
-        Log::log('Could not find custom template for course, using default: ' . $template);
+        Log::error('Could not find custom template for course, using default: ' . $template);
         return $template;
     }
 }
