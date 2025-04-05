@@ -12,19 +12,19 @@ class Enrollment {
     public function register(): void {
         register_post_type('course_enrollment', [
             'labels' => [
-                'name' => 'Enrollments',
-                'singular_name' => 'Enrollment',
-                'add_new' => 'Add New',
-                'add_new_item' => 'Add New Enrollment',
-                'edit_item' => 'Edit Enrollment',
-                'new_item' => 'New Enrollment',
-                'view_item' => 'View Enrollment',
-                'view_items' => 'View Enrollments',
-                'search_items' => 'Search Enrollments',
-                'not_found' => 'No enrollments found',
-                'not_found_in_trash' => 'No enrollments found in Trash',
-                'all_items' => 'All Enrollments',
-                'menu_name' => 'Enrollments'
+                'name' => 'Påmeldinger',
+                'singular_name' => 'Påmelding',
+                'add_new' => 'Legg til ny',
+                'add_new_item' => 'Legg til ny påmelding',
+                'edit_item' => 'Rediger påmelding',
+                'new_item' => 'Ny påmelding',
+                'view_item' => 'Vis påmelding',
+                'view_items' => 'Vis påmeldinger',
+                'search_items' => 'Søk i påmeldinger',
+                'not_found' => 'Ingen påmeldinger funnet',
+                'not_found_in_trash' => 'Ingen påmeldinger funnet i papirkurven',
+                'all_items' => 'Alle påmeldinger',
+                'menu_name' => 'Påmeldinger'
             ],
             'public' => false,
             'show_ui' => true,

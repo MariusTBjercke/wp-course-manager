@@ -30,10 +30,10 @@ class ContentFilter {
 
         $metaHtml = '';
         if ($location) {
-            $metaHtml .= '<p><strong>Location:</strong> ' . esc_html($location) . '</p>';
+            $metaHtml .= '<p><strong>Sted:</strong> ' . esc_html($location) . '</p>';
         }
         if ($startDate) {
-            $metaHtml .= '<p><strong>Start Date:</strong> ' . esc_html($startDate) . '</p>';
+            $metaHtml .= '<p><strong>Startdato:</strong> ' . esc_html($startDate) . '</p>';
         }
 
         // Check if the content already contains the enrollment form shortcode
