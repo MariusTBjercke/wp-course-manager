@@ -8,8 +8,6 @@ namespace CourseManager\Frontend;
 class Shortcode {
     /**
      * Register the shortcode.
-     *
-     * @return void
      */
     public function register(): void {
         add_shortcode('course_manager', [$this, 'render']);
@@ -17,70 +15,51 @@ class Shortcode {
 
     /**
      * Render the course manager shortcode.
-     *
-     * @param array $atts Shortcode attributes.
-     * @return string
      */
     public function render(array $atts = []): string {
         $attributes = shortcode_atts([
-            'location' => '',
-            'category' => '',
             'show_filters' => 'yes',
         ], $atts);
 
-        // Get filter values from URL if present
-        $search_term = isset($_GET['course_search']) ? sanitize_text_field($_GET['course_search']) : '';
-        $selected_location = isset($_GET['course_location']) ? sanitize_text_field($_GET['course_location']) : '';
-        $selected_category = isset($_GET['course_category']) ? sanitize_text_field($_GET['course_category']) : '';
+        $searchTerm = isset($_GET['course_search']) ? sanitize_text_field($_GET['course_search']) : '';
+        $selectedTaxonomies = [];
+        $taxonomies = get_option('course_manager_taxonomies', []);
+        foreach ($taxonomies as $slug => $name) {
+            $selectedTaxonomies[$slug] = isset($_GET[$slug]) ? sanitize_text_field($_GET[$slug]) : '';
+        }
 
-        // Build query arguments
         $args = [
             'post_type' => 'course',
             'post_status' => 'publish',
-            's' => $search_term,
-            'posts_per_page' => -1,
+            's' => $searchTerm,
+            'posts_per_page' => get_option('course_manager_items_per_page', 10),
             'tax_query' => []
         ];
 
-        // Add taxonomy filters if set
-        if (!empty($selected_location)) {
-            $args['tax_query'][] = [
-                'taxonomy' => 'course_location',
-                'field' => 'slug',
-                'terms' => $selected_location
-            ];
+        foreach ($selectedTaxonomies as $taxonomy => $term) {
+            if (!empty($term)) {
+                $args['tax_query'][] = [
+                    'taxonomy' => $taxonomy,
+                    'field' => 'slug',
+                    'terms' => $term
+                ];
+            }
         }
 
-        if (!empty($selected_category)) {
-            $args['tax_query'][] = [
-                'taxonomy' => 'course_category',
-                'field' => 'slug',
-                'terms' => $selected_category
-            ];
-        }
-
-        // Combine tax queries if needed
         if (count($args['tax_query']) > 1) {
             $args['tax_query']['relation'] = 'AND';
         }
 
-        // Get all courses matching our criteria
         $courses = get_posts($args);
-
-        // Get all locations and categories for filters
-        $locations = get_terms([
-            'taxonomy' => 'course_location',
-            'hide_empty' => false,
-        ]);
-
-        $categories = get_terms([
-            'taxonomy' => 'course_category',
-            'hide_empty' => false,
-        ]);
+        $taxonomyTerms = [];
+        foreach ($taxonomies as $slug => $name) {
+            $taxonomyTerms[$slug] = get_terms(['taxonomy' => $slug, 'hide_empty' => false]);
+        }
 
         ob_start();
         ?>
         <div class="cm-course-manager">
+            <h1>Kurs</h1>
             <?php
             if ($attributes['show_filters'] === 'yes'): ?>
                 <div class="cm-filters">
@@ -88,55 +67,35 @@ class Shortcode {
                     echo esc_url(get_permalink()); ?>">
                         <div class="cm-filter-group">
                             <label for="course_search">Søk:</label>
-                            <input
-                                    type="text"
-                                    id="course_search"
-                                    name="course_search"
-                                    placeholder="Søk etter kurs..."
-                                    value="<?php echo esc_attr($search_term); ?>"
-                            />
+                            <input type="text" id="course_search" name="course_search" placeholder="Søk etter kurs..."
+                                   value="<?php
+                                   echo esc_attr($searchTerm); ?>"/>
                         </div>
-
-                        <div class="cm-filter-group">
-                            <label for="course_location">Sted:</label>
-                            <select name="course_location" id="course_location">
-                                <option value="">Alle steder</option>
-                                <?php
-                                foreach ($locations as $location): ?>
+                        <?php
+                        foreach ($taxonomies as $slug => $name): ?>
+                            <div class="cm-filter-group">
+                                <label for="<?php
+                                echo esc_attr($slug); ?>"><?php
+                                    echo esc_html($name); ?>:</label>
+                                <select name="<?php
+                                echo esc_attr($slug); ?>" id="<?php
+                                echo esc_attr($slug); ?>">
+                                    <option value="">Alle <?php
+                                        echo esc_html(strtolower($name)); ?></option>
                                     <?php
-                                    $indent = '';
-                                    if ($location->parent) {
-                                        $indent = '&nbsp;&nbsp;';
-                                    }
-                                    ?>
-                                    <option value="<?php
-                                    echo esc_attr($location->slug); ?>" <?php
-                                    selected($selected_location, $location->slug); ?>>
-                                        <?php
-                                        echo $indent . esc_html($location->name); ?>
-                                    </option>
-                                <?php
-                                endforeach; ?>
-                            </select>
-                        </div>
-
-                        <div class="cm-filter-group">
-                            <label for="course_category">Kategori:</label>
-                            <select name="course_category" id="course_category">
-                                <option value="">Alle kategorier</option>
-                                <?php
-                                foreach ($categories as $category): ?>
-                                    <option value="<?php
-                                    echo esc_attr($category->slug); ?>" <?php
-                                    selected($selected_category, $category->slug); ?>>
-                                        <?php
-                                        echo esc_html($category->name); ?>
-                                    </option>
-                                <?php
-                                endforeach; ?>
-                            </select>
-                        </div>
-
+                                    foreach ($taxonomyTerms[$slug] as $term): ?>
+                                        <option value="<?php
+                                        echo esc_attr($term->slug); ?>" <?php
+                                        selected($selectedTaxonomies[$slug], $term->slug); ?>>
+                                            <?php
+                                            echo esc_html($term->name); ?>
+                                        </option>
+                                    <?php
+                                    endforeach; ?>
+                                </select>
+                            </div>
+                        <?php
+                        endforeach; ?>
                         <button type="submit" class="cm-filter-button">Filtrer</button>
                     </form>
                 </div>
@@ -154,9 +113,13 @@ class Shortcode {
                     <?php
                     foreach ($courses as $course): ?>
                         <?php
-                        // Get course locations and categories
-                        $course_locations = get_the_terms($course->ID, 'course_location');
-                        $course_categories = get_the_terms($course->ID, 'course_category');
+                        $courseTaxonomyData = [];
+                        foreach ($taxonomies as $slug => $name) {
+                            $terms = get_the_terms($course->ID, $slug);
+                            if ($terms && !is_wp_error($terms)) {
+                                $courseTaxonomyData[$name] = wp_list_pluck($terms, 'name');
+                            }
+                        }
                         ?>
                         <div class="cm-course-item">
                             <?php
@@ -167,38 +130,24 @@ class Shortcode {
                                 </div>
                             <?php
                             endif; ?>
-
                             <div class="cm-course-content">
                                 <h3 class="cm-course-title"><?php
                                     echo esc_html($course->post_title); ?></h3>
-
                                 <div class="cm-course-meta">
                                     <?php
-                                    if ($course_locations && !is_wp_error($course_locations)): ?>
-                                        <span class="cm-course-location">
-                                            <strong>Sted:</strong>
-                                            <?php
-                                            echo esc_html(join(', ', wp_list_pluck($course_locations, 'name'))); ?>
+                                    foreach ($courseTaxonomyData as $typeName => $terms): ?>
+                                        <span class="cm-course-taxonomy">
+                                            <strong><?php
+                                                echo esc_html($typeName); ?>:</strong> <?php
+                                            echo esc_html(join(', ', $terms)); ?>
                                         </span>
                                     <?php
-                                    endif; ?>
-
-                                    <?php
-                                    if ($course_categories && !is_wp_error($course_categories)): ?>
-                                        <span class="cm-course-category">
-                                            <strong>Kategori:</strong>
-                                            <?php
-                                            echo esc_html(join(', ', wp_list_pluck($course_categories, 'name'))); ?>
-                                        </span>
-                                    <?php
-                                    endif; ?>
+                                    endforeach; ?>
                                 </div>
-
                                 <div class="cm-course-excerpt">
                                     <?php
                                     echo wp_trim_words($course->post_content, 30); ?>
                                 </div>
-
                                 <a href="<?php
                                 echo get_permalink($course->ID); ?>" class="cm-course-link">Vis kurs</a>
                             </div>

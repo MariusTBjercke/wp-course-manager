@@ -1,14 +1,12 @@
 interface FilterElements {
-  locationSelect: HTMLSelectElement | null;
-  categorySelect: HTMLSelectElement | null;
   filterButton: HTMLButtonElement | null;
+  filterSelects: NodeListOf<HTMLSelectElement> | null;
 }
 
 export default class CourseManager {
   private elements: FilterElements = {
-    locationSelect: null,
-    categorySelect: null,
-    filterButton: null
+    filterButton: null,
+    filterSelects: null
   };
 
   constructor() {
@@ -30,24 +28,21 @@ export default class CourseManager {
    * Find and store filter elements.
    */
   private findElements(): void {
-    this.elements.locationSelect = document.querySelector('#course_location');
-    this.elements.categorySelect = document.querySelector('#course_category');
     this.elements.filterButton = document.querySelector('.cm-filter-button');
+    this.elements.filterSelects = document.querySelectorAll('.cm-filter-group select[id]'); // Henter alle <select> i filtergrupper
   }
 
   /**
    * Bind events to filter elements.
    */
   private bindEvents(): void {
-    const { locationSelect, categorySelect } = this.elements;
+    const {filterSelects} = this.elements;
 
-    // Add change listeners to selects for auto-submit
-    if (locationSelect) {
-      locationSelect.addEventListener('change', () => this.handleAutoSubmit());
-    }
-
-    if (categorySelect) {
-      categorySelect.addEventListener('change', () => this.handleAutoSubmit());
+    // Add change listeners to all filter selects for auto-submit
+    if (filterSelects) {
+      filterSelects.forEach(select => {
+        select.addEventListener('change', () => this.handleAutoSubmit());
+      });
     }
   }
 

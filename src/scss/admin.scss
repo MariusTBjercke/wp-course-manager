@@ -1,0 +1,46 @@
+/* Course Manager Admin Styles */
+
+#taxonomies-wrapper {
+  margin-bottom: 1rem;
+
+  .taxonomy-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+
+    input[type="text"] {
+      flex: 1;
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      max-width: 400px;
+    }
+
+    button.remove-taxonomy {
+      padding: 0.5rem 1rem;
+      background-color: #dc3232;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+
+      &:hover {
+        background-color: #b32d2e;
+      }
+    }
+  }
+}
+
+#add-taxonomy {
+  background-color: #0073aa;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+
+  &:hover {
+    background-color: #005a87;
+  }
+}

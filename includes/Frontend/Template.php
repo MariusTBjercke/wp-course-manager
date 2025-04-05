@@ -2,8 +2,6 @@
 
 namespace CourseManager\Frontend;
 
-use CourseManager\Log;
-
 /**
  * Template class.
  */
@@ -32,7 +30,6 @@ class Template {
             }
         }
 
-        Log::error('Could not find custom template for course, using default: ' . $template);
         return $template;
     }
 }

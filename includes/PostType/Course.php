@@ -8,8 +8,6 @@ namespace CourseManager\PostType;
 class Course {
     /**
      * Register the post type.
-     *
-     * @return void
      */
     public function register(): void {
         register_post_type('course', [
@@ -47,6 +45,27 @@ class Course {
             'rewrite' => ['slug' => 'kurs-arkiv'],
             'supports' => ['title', 'editor', 'thumbnail'],
             'menu_icon' => 'dashicons-welcome-learn-more',
+            'taxonomies' => [],
         ]);
+
+        // Dynamically add taxonomies to the course post type
+        add_filter('register_post_type_args', [$this, 'addDynamicTaxonomies'], 10, 2);
+    }
+
+    /**
+     * Add dynamic taxonomies to the course post type.
+     *
+     * @param array $args The arguments for the post type.
+     * @param string $postType The post type.
+     * @return array
+     */
+    public function addDynamicTaxonomies(array $args, string $postType): array {
+        if ($postType !== 'course') {
+            return $args;
+        }
+
+        $taxonomies = get_option('course_manager_taxonomies', []);
+        $args['taxonomies'] = array_keys($taxonomies);
+        return $args;
     }
 }

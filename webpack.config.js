@@ -47,6 +47,7 @@ module.exports = [
     mode: developmentEnv ? 'development' : 'production',
     entry: {
       style: './src/scss/style.scss',
+      admin: './src/scss/admin.scss',
     },
     output: {
       path: path.resolve(__dirname, 'dist'),

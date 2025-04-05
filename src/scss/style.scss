@@ -4,6 +4,11 @@
   margin: 2rem 0;
   font-family: inherit;
 
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+  }
+
   // Filters
   .cm-filters {
     margin-bottom: 2rem;
@@ -28,21 +33,14 @@
         font-weight: 600;
       }
 
-      input[type="text"] {
-        width: 100%;
-        padding: 0.5rem;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        background-color: #fff;
-        box-sizing: border-box;
-      }
-
+      input[type="text"],
       select {
         width: 100%;
         padding: 0.5rem;
         border: 1px solid #ddd;
         border-radius: 4px;
         background-color: #fff;
+        box-sizing: border-box;
       }
     }
 
