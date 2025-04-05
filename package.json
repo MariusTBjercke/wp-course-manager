@@ -4,8 +4,8 @@
   "description": "A simple and flexible WordPress plugin for managing courses, displaying available sessions, and allowing users to register.",
   "main": "index.js",
   "scripts": {
-    "build": "NODE_ENV=production webpack",
-    "watch": "NODE_ENV=development webpack --watch"
+    "build": "webpack",
+    "watch": "webpack --watch"
   },
   "repository": {
     "type": "git",

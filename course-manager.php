@@ -1,7 +1,7 @@
 <?php
 /**
- * Plugin Name: CourseManager
- * Description: A simple course listing and enrollment plugin.
+ * Plugin Name: Course Manager
+ * Description: A WordPress plugin for managing course listings and enrollments, tailored for Norwegian users.
  * Version: 1.0
  */
 
