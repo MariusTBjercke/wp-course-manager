@@ -54,6 +54,12 @@ class AdminSettings {
             'default' => []
         ]);
 
+        register_setting('course_manager_settings', 'course_manager_default_email_message', [
+            'type' => 'string',
+            'sanitize_callback' => 'sanitize_textarea_field',
+            'default' => "Hei %s,\n\nTakk for at du meldte deg på %s! Vi gleder oss til å se deg.\n\nBeste hilsener,\nKursadministrator-teamet"
+        ]);
+
         // Add settings fields
         add_settings_field(
             'course_manager_items_per_page',
@@ -67,6 +73,14 @@ class AdminSettings {
             'course_manager_taxonomies',
             'Taksonomier',
             [$this, 'renderTaxonomiesField'],
+            'course_manager_settings',
+            'course_manager_general_section'
+        );
+
+        add_settings_field(
+            'course_manager_default_email_message',
+            'Standard e-postbekreftelse',
+            [$this, 'renderDefaultEmailMessageField'],
             'course_manager_settings',
             'course_manager_general_section'
         );
@@ -184,6 +198,17 @@ class AdminSettings {
             }
           });
         </script>
+        <?php
+    }
+
+    /**
+     * Render the default email message field.
+     */
+    public function renderDefaultEmailMessageField(): void {
+        $value = get_option('course_manager_default_email_message', "Hei %s,\n\nTakk for at du meldte deg på %s! Vi gleder oss til å se deg.\n\nBeste hilsener,\nKursadministrator-teamet");
+        ?>
+        <textarea name="course_manager_default_email_message" rows="5" cols="50"><?php echo esc_textarea($value); ?></textarea>
+        <p class="description">Standard melding som sendes til brukere ved påmelding. Bruk %s for navn og kursnavn (i den rekkefølgen).</p>
         <?php
     }
 

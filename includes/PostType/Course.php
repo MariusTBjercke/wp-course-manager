@@ -2,6 +2,8 @@
 
 namespace CourseManager\PostType;
 
+use WP_Post;
+
 /**
  * Course class.
  */
@@ -50,6 +52,10 @@ class Course {
 
         // Dynamically add taxonomies to the course post type
         add_filter('register_post_type_args', [$this, 'addDynamicTaxonomies'], 10, 2);
+
+        // Register meta box for custom email message
+        add_action('add_meta_boxes', [$this, 'addMetaBoxes']);
+        add_action('save_post', [$this, 'saveMetaBoxData']);
     }
 
     /**
@@ -67,5 +73,55 @@ class Course {
         $taxonomies = get_option('course_manager_taxonomies', []);
         $args['taxonomies'] = array_keys($taxonomies);
         return $args;
+    }
+
+    /**
+     * Add meta boxes for the course post type.
+     */
+    public function addMetaBoxes(): void {
+        add_meta_box(
+            'course_email_message',
+            'Egendefinert e-postbekreftelse',
+            [$this, 'renderEmailMessageMetaBox'],
+            'course',
+            'normal',
+            'default'
+        );
+    }
+
+    /**
+     * Render the email message meta box.
+     *
+     * @param WP_Post $post The current post object.
+     */
+    public function renderEmailMessageMetaBox(WP_Post $post): void {
+        $custom_message = get_post_meta($post->ID, '_course_custom_email_message', true);
+        wp_nonce_field('course_email_message_nonce', 'course_email_message_nonce');
+        ?>
+        <p>
+            <label for="course_custom_email_message">Egendefinert melding (valgfritt):</label><br>
+            <textarea name="course_custom_email_message" id="course_custom_email_message" rows="5" cols="50"><?php echo esc_textarea($custom_message); ?></textarea>
+        </p>
+        <p class="description">Hvis tom, brukes standardmeldingen fra innstillingene. Bruk %s for navn og kursnavn.</p>
+        <?php
+    }
+
+    /**
+     * Save the meta box data.
+     *
+     * @param integer $post_id The ID of the post being saved.
+     */
+    public function saveMetaBoxData(int $post_id): void {
+        if (!isset($_POST['course_email_message_nonce']) || !wp_verify_nonce($_POST['course_email_message_nonce'], 'course_email_message_nonce')) {
+            return;
+        }
+
+        if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+            return;
+        }
+
+        if (isset($_POST['course_custom_email_message'])) {
+            update_post_meta($post_id, '_course_custom_email_message', sanitize_textarea_field($_POST['course_custom_email_message']));
+        }
     }
 }

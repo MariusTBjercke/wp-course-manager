@@ -2,7 +2,13 @@
 
 namespace CourseManager\Frontend;
 
+/**
+ * Shortcode class for managing course-related shortcodes.
+ */
 class Shortcode {
+    /**
+     * Register shortcodes.
+     */
     public function register(): void {
         add_shortcode('course_manager', [$this, 'renderCourseList']);
         add_shortcode('course_enrollment_form', [$this, 'renderEnrollmentForm']);
@@ -12,6 +18,12 @@ class Shortcode {
         });
     }
 
+    /**
+     * Render the course list shortcode.
+     *
+     * @param array $atts Shortcode attributes.
+     * @return string HTML output for the course list.
+     */
     public function renderCourseList(array $atts = []): string {
         $attributes = shortcode_atts([
             'show_filters' => 'yes',
@@ -127,24 +139,35 @@ class Shortcode {
         return ob_get_clean();
     }
 
+    /**
+     * Render the enrollment form shortcode.
+     *
+     * @param array $atts Shortcode attributes.
+     * @return string HTML output for the enrollment form.
+     */
     public function renderEnrollmentForm(array $atts = []): string {
+        // Ensure we're on a single course page
         if (!is_singular('course')) {
             return '';
         }
 
         $courseId = get_the_ID();
 
+        // Handle form submission
         $submissionMessage = '';
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cm_name'], $_POST['cm_email'], $_POST['cm_enrollment_nonce'])) {
+            // Verify nonce for security
             if (!wp_verify_nonce($_POST['cm_enrollment_nonce'], 'cm_enroll_action')) {
                 $submissionMessage = '<p class="error">Sikkerhetskontroll feilet. Vennligst prøv igjen.</p>';
             } else {
                 $name = sanitize_text_field($_POST['cm_name']);
                 $email = sanitize_email($_POST['cm_email']);
 
+                // Validate input
                 if (empty($name) || empty($email) || !is_email($email)) {
                     $submissionMessage = '<p class="error">Vennligst fyll inn alle påkrevde felt med gyldig data.</p>';
                 } else {
+                    // Create a new enrollment post
                     $enrollmentId = wp_insert_post([
                         'post_type' => 'course_enrollment',
                         'post_title' => sprintf('Påmelding til %s av %s', get_the_title($courseId), $name),
@@ -152,18 +175,19 @@ class Shortcode {
                     ]);
 
                     if ($enrollmentId) {
+                        // Save enrollment details as post meta
                         update_post_meta($enrollmentId, 'cm_course_id', $courseId);
                         update_post_meta($enrollmentId, 'cm_name', $name);
                         update_post_meta($enrollmentId, 'cm_email', $email);
 
                         $submissionMessage = '<p class="success">Du har meldt deg på kurset!</p>';
 
+                        // Optionally send email confirmation to user
                         $subject = 'Bekreftelse på kurspåmelding';
-                        $message = sprintf(
-                            "Hei %s,\n\nTakk for at du meldte deg på %s! Vi gleder oss til å se deg.\n\nBeste hilsener,\nKursadministrator-teamet",
-                            $name,
-                            get_the_title($courseId)
-                        );
+                        $custom_message = get_post_meta($courseId, '_course_custom_email_message', true);
+                        $default_message = get_option('course_manager_default_email_message', "Hei %s,\n\nTakk for at du meldte deg på %s! Vi gleder oss til å se deg.\n\nBeste hilsener,\nKursadministrator-teamet");
+                        $message = !empty($custom_message) ? $custom_message : $default_message;
+                        $message = sprintf($message, $name, get_the_title($courseId));
                         wp_mail($email, $subject, $message);
                     } else {
                         $submissionMessage = '<p class="error">Det oppstod en feil ved registrering av deg i kurset. Vennligst prøv igjen.</p>';
@@ -188,7 +212,7 @@ class Shortcode {
                 <label for="cm_email">E-post</label>
                 <input type="email" name="cm_email" id="cm_email" required>
 
-                <button type="submit">Meld deg på</button>
+                <button type="submit">Meld deg på nå</button>
             </form>
         </div>
         <?php
