@@ -342,6 +342,44 @@
   }
 }
 
+// Payment Form Styles (for payment page)
+.cm-payment-form {
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 1.5rem;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  text-align: center;
+
+  h2 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.75rem;
+    color: #333;
+  }
+
+  p {
+    margin-bottom: 1rem;
+    color: #666;
+  }
+
+  .cm-pay-button {
+    padding: 0.75rem 2rem;
+    background-color: #0073aa;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+
+    &:hover {
+      background-color: #005a87;
+    }
+  }
+}
+
 // Responsive styles
 @media (max-width: 768px) {
   .cm-course-manager {

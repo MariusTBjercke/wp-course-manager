@@ -57,13 +57,19 @@ class AdminSettings {
         register_setting('course_manager_settings', 'course_manager_default_email_message', [
             'type' => 'string',
             'sanitize_callback' => 'sanitize_textarea_field',
-            'default' => "Hei %s,\n\nTakk for at du meldte deg på %s! Vi gleder oss til å se deg.\n\nAntall deltakere: %d\nTotal pris: %d NOK\n\nBeste hilsener,\nKursadministrator-teamet"
+            'default' => "Hei [buyer_name],\n\nTakk for at du meldte deg på [course_title]! Vi gleder oss til å se deg.\n\nAntall deltakere: [participant_count]\nTotal pris: [total_price] NOK\n\nDeltakere:\n[participants]\n\nBeste hilsener,\nKursadministrator-teamet"
         ]);
 
         register_setting('course_manager_settings', 'course_manager_admin_email', [
             'type' => 'string',
             'sanitize_callback' => 'sanitize_email',
             'default' => get_option('admin_email')
+        ]);
+
+        register_setting('course_manager_settings', 'course_manager_admin_email_message', [
+            'type' => 'string',
+            'sanitize_callback' => 'sanitize_textarea_field',
+            'default' => "Hei,\n\nEn ny påmelding har blitt registrert for kurset \"[course_title]\".\n\nBestillerinformasjon:\n- Navn: [buyer_name]\n- E-post: [buyer_email]\n- Telefonnummer: [buyer_phone]\n- Firma: [buyer_company]\n- Gateadresse: [buyer_street_address]\n- Postnummer: [buyer_postal_code]\n- Poststed: [buyer_city]\n- Kommentarer/spørsmål: [buyer_comments]\n\nDeltakere ([participant_count]):\n[participants]\n\nTotal pris: [total_price] NOK\n\nBeste hilsener,\nKursadministrator-systemet"
         ]);
 
         register_setting('course_manager_settings', 'course_manager_vipps_api_key', [
@@ -91,7 +97,7 @@ class AdminSettings {
 
         add_settings_field(
             'course_manager_default_email_message',
-            'Standard e-postbekreftelse',
+            'Standard e-postbekreftelse til kunde',
             [$this, 'renderDefaultEmailMessageField'],
             'course_manager_settings',
             'course_manager_general_section'
@@ -101,6 +107,14 @@ class AdminSettings {
             'course_manager_admin_email',
             'E-postadresse for administratorvarsler',
             [$this, 'renderAdminEmailField'],
+            'course_manager_settings',
+            'course_manager_general_section'
+        );
+
+        add_settings_field(
+            'course_manager_admin_email_message',
+            'Standard e-postvarsel til administrator',
+            [$this, 'renderAdminEmailMessageField'],
             'course_manager_settings',
             'course_manager_general_section'
         );
@@ -230,13 +244,20 @@ class AdminSettings {
     }
 
     /**
-     * Render the default email message field.
+     * Render the default email message field for customers.
      */
     public function renderDefaultEmailMessageField(): void {
-        $value = get_option('course_manager_default_email_message', "Hei %s,\n\nTakk for at du meldte deg på %s! Vi gleder oss til å se deg.\n\nAntall deltakere: %d\nTotal pris: %d NOK\n\nBeste hilsener,\nKursadministrator-teamet");
+        $value = get_option('course_manager_default_email_message', "Hei [buyer_name],\n\nTakk for at du meldte deg på [course_title]! Vi gleder oss til å se deg.\n\nAntall deltakere: [participant_count]\nTotal pris: [total_price] NOK\n\nDeltakere:\n[participants]\n\nBeste hilsener,\nKursadministrator-teamet");
         ?>
         <textarea name="course_manager_default_email_message" rows="5" cols="50"><?php echo esc_textarea($value); ?></textarea>
-        <p class="description">Standard melding som sendes til brukere ved påmelding. Bruk %s for navn og kursnavn, %d for antall deltakere og total pris (i den rekkefølgen).</p>
+        <p class="description">Standard melding som sendes til kunder ved påmelding. Bruk følgende tagger for å inkludere variabler:<br>
+            - [buyer_name]: Navnet på bestilleren<br>
+            - [course_title]: Tittelen på kurset<br>
+            - [participant_count]: Antall deltakere<br>
+            - [total_price]: Total pris i NOK<br>
+            - [participants]: Liste over deltakernavn (en per linje, med "- " foran)<br>
+            Eksempel: "Hei [buyer_name], takk for at du meldte deg på [course_title]!"
+        </p>
         <?php
     }
 
@@ -248,6 +269,31 @@ class AdminSettings {
         ?>
         <input type="email" name="course_manager_admin_email" value="<?php echo esc_attr($value); ?>" style="width: 300px;" />
         <p class="description">E-postadressen som skal motta varsler om nye påmeldinger. La stå tomt for å deaktivere varsler.</p>
+        <?php
+    }
+
+    /**
+     * Render the admin email message field.
+     */
+    public function renderAdminEmailMessageField(): void {
+        $value = get_option('course_manager_admin_email_message', "Hei,\n\nEn ny påmelding har blitt registrert for kurset \"[course_title]\".\n\nBestillerinformasjon:\n- Navn: [buyer_name]\n- E-post: [buyer_email]\n- Telefonnummer: [buyer_phone]\n- Firma: [buyer_company]\n- Gateadresse: [buyer_street_address]\n- Postnummer: [buyer_postal_code]\n- Poststed: [buyer_city]\n- Kommentarer/spørsmål: [buyer_comments]\n\nDeltakere ([participant_count]):\n[participants]\n\nTotal pris: [total_price] NOK\n\nBeste hilsener,\nKursadministrator-systemet");
+        ?>
+        <textarea name="course_manager_admin_email_message" rows="5" cols="50"><?php echo esc_textarea($value); ?></textarea>
+        <p class="description">Standard melding som sendes til administratoren ved nye påmeldinger. Bruk følgende tagger for å inkludere variabler:<br>
+            - [buyer_name]: Navnet på bestilleren<br>
+            - [buyer_email]: E-postadressen til bestilleren<br>
+            - [buyer_phone]: Telefonnummeret til bestilleren<br>
+            - [buyer_company]: Firmanavnet til bestilleren<br>
+            - [buyer_street_address]: Gateadressen til bestilleren<br>
+            - [buyer_postal_code]: Postnummeret til bestilleren<br>
+            - [buyer_city]: Poststedet til bestilleren<br>
+            - [buyer_comments]: Kommentarer/spørsmål fra bestilleren<br>
+            - [course_title]: Tittelen på kurset<br>
+            - [participant_count]: Antall deltakere<br>
+            - [total_price]: Total pris i NOK<br>
+            - [participants]: Liste over deltakernavn (en per linje, med "- " foran)<br>
+            Eksempel: "Ny påmelding til [course_title] fra [buyer_name]."
+        </p>
         <?php
     }
 

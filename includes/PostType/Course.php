@@ -111,7 +111,14 @@ class Course {
             <label for="course_custom_email_message">Egendefinert melding (valgfritt):</label><br>
             <textarea name="course_custom_email_message" id="course_custom_email_message" rows="5" cols="50"><?php echo esc_textarea($custom_message); ?></textarea>
         </p>
-        <p class="description">Hvis tom, brukes standardmeldingen fra innstillingene. Bruk %s for navn og kursnavn.</p>
+        <p class="description">Hvis tom, brukes standardmeldingen fra innstillingene. Bruk følgende tagger for å inkludere variabler:<br>
+            - [buyer_name]: Navnet på bestilleren<br>
+            - [course_title]: Tittelen på kurset<br>
+            - [participant_count]: Antall deltakere<br>
+            - [total_price]: Total pris i NOK<br>
+            - [participants]: Liste over deltakernavn (en per linje, med "- " foran)<br>
+            Eksempel: "Hei [buyer_name], takk for at du meldte deg på [course_title]!"
+        </p>
         <?php
     }
 

@@ -226,6 +226,11 @@ class Shortcode {
         $submissionMessage = '';
         $pricePerParticipant = (int) get_post_meta($courseId, '_course_price', true); // Get price per participant
 
+        // Display payment success message if redirected back
+        if (isset($_GET['payment_success']) && $_GET['payment_success'] === '1') {
+            $submissionMessage = '<p class="success">Påmeldingen er fullført! En bekreftelse er sendt til deg på e-post.</p>';
+        }
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cm_enrollment_nonce'])) {
             if (!wp_verify_nonce($_POST['cm_enrollment_nonce'], 'cm_enroll_action')) {
                 $submissionMessage = '<p class="error">Sikkerhetskontroll feilet. Vennligst prøv igjen.</p>';
@@ -443,57 +448,75 @@ class Shortcode {
             update_post_meta($enrollmentId, 'cm_participants', $participants);
             update_post_meta($enrollmentId, 'cm_total_price', $totalPrice);
 
+            // Prepare variables for email template
+            $templateVars = [
+                'buyer_name' => $buyer_name,
+                'course_title' => get_the_title($courseId),
+                'participant_count' => count($participants),
+                'total_price' => $totalPrice,
+                'participants' => implode("\n", array_map(function($participant) {
+                    return "- " . $participant['name'];
+                }, $participants)),
+                'buyer_email' => $buyer_email,
+                'buyer_phone' => $buyer_phone,
+                'buyer_company' => $buyer_company,
+                'buyer_street_address' => $buyer_street_address,
+                'buyer_postal_code' => $buyer_postal_code,
+                'buyer_city' => $buyer_city,
+                'buyer_comments' => $buyer_comments,
+            ];
+
             // Send confirmation email to user
             $subject = 'Bekreftelse på kurspåmelding';
             $custom_message = get_post_meta($courseId, '_course_custom_email_message', true);
             $default_message = get_option(
                 'course_manager_default_email_message',
-                "Hei %s,\n\nTakk for at du meldte deg på %s! Vi gleder oss til å se deg.\n\nAntall deltakere: %d\nTotal pris: %d NOK\n\nBeste hilsener,\nKursadministrator-teamet"
+                "Hei [buyer_name],\n\nTakk for at du meldte deg på [course_title]! Vi gleder oss til å se deg.\n\nAntall deltakere: [participant_count]\nTotal pris: [total_price] NOK\n\nDeltakere:\n[participants]\n\nBeste hilsener,\nKursadministrator-teamet"
             );
             $message = !empty($custom_message) ? $custom_message : $default_message;
 
-            // Include participant names in the email
-            $participantNames = array_map(function($participant) {
-                return $participant['name'];
-            }, $participants);
-            $participantList = implode("\n- ", $participantNames);
-            $message = sprintf($message, $buyer_name, get_the_title($courseId), count($participants), $totalPrice);
-            $message .= "\n\nDeltakere:\n- " . $participantList;
+            // Parse the email template
+            $message = $this->parseEmailTemplate($message, $templateVars);
 
             wp_mail($buyer_email, $subject, $message);
 
             // Send notification email to admin
             $adminEmail = get_option('course_manager_admin_email');
             if (!empty($adminEmail) && is_email($adminEmail)) {
-                $adminSubject = 'Ny påmelding til ' . get_the_title($courseId);
-                $adminMessage = "Hei,\n\nEn ny påmelding har blitt registrert for kurset \"" . get_the_title($courseId) . "\".\n\n";
-                $adminMessage .= "Bestillerinformasjon:\n";
-                $adminMessage .= "- Navn: " . $buyer_name . "\n";
-                $adminMessage .= "- E-post: " . $buyer_email . "\n";
-                $adminMessage .= "- Telefonnummer: " . $buyer_phone . "\n";
-                $adminMessage .= "- Firma: " . $buyer_company . "\n";
-                $adminMessage .= "- Gateadresse: " . $buyer_street_address . "\n";
-                $adminMessage .= "- Postnummer: " . $buyer_postal_code . "\n";
-                $adminMessage .= "- Poststed: " . $buyer_city . "\n";
-                $adminMessage .= "- Kommentarer/spørsmål: " . $buyer_comments . "\n\n";
-                $adminMessage .= "Deltakere (" . count($participants) . "):\n";
-                foreach ($participants as $index => $participant) {
-                    $adminMessage .= "Deltaker " . ($index + 1) . ":\n";
-                    $adminMessage .= "- Navn: " . $participant['name'] . "\n";
-                    $adminMessage .= "- E-post: " . $participant['email'] . "\n";
-                    $adminMessage .= "- Telefonnummer: " . $participant['phone'] . "\n";
-                    $adminMessage .= "- Fødselsdato: " . $participant['birthdate'] . "\n\n";
-                }
-                $adminMessage .= "Total pris: " . $totalPrice . " NOK\n\n";
-                $adminMessage .= "Beste hilsener,\nKursadministrator-systemet";
+                $adminSubject = 'Ny påmelding til [course_title]';
+                $adminMessage = get_option(
+                    'course_manager_admin_email_message',
+                    "Hei,\n\nEn ny påmelding har blitt registrert for kurset \"[course_title]\".\n\nBestillerinformasjon:\n- Navn: [buyer_name]\n- E-post: [buyer_email]\n- Telefonnummer: [buyer_phone]\n- Firma: [buyer_company]\n- Gateadresse: [buyer_street_address]\n- Postnummer: [buyer_postal_code]\n- Poststed: [buyer_city]\n- Kommentarer/spørsmål: [buyer_comments]\n\nDeltakere ([participant_count]):\n[participants]\n\nTotal pris: [total_price] NOK\n\nBeste hilsener,\nKursadministrator-systemet"
+                );
+
+                // Parse both the admin email subject and message
+                $adminSubject = $this->parseEmailTemplate($adminSubject, $templateVars);
+                $adminMessage = $this->parseEmailTemplate($adminMessage, $templateVars);
 
                 wp_mail($adminEmail, $adminSubject, $adminMessage);
+            } else {
+                error_log('Admin email not sent: Invalid or empty admin email (' . $adminEmail . ')');
             }
 
             return $enrollmentId;
         }
 
         return false;
+    }
+
+    /**
+     * Parse an email template by replacing tags with values.
+     *
+     * @param string $template The email template with tags.
+     * @param array $vars The variables to replace in the template.
+     * @return string The parsed email template.
+     */
+    private function parseEmailTemplate(string $template, array $vars): string {
+        $message = $template;
+        foreach ($vars as $key => $value) {
+            $message = str_replace("[$key]", $value, $message);
+        }
+        return $message;
     }
 
     /**
@@ -517,13 +540,13 @@ class Shortcode {
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cm_payment_nonce']) && wp_verify_nonce($_POST['cm_payment_nonce'], 'cm_payment_action')) {
             $vippsApiKey = get_option('course_manager_vipps_api_key');
-//            if (!empty($vippsApiKey)) {
-                // Simulate initiating a payment with Vipps
-                // In a real implementation, you would:
-                // 1. Make a POST request to Vipps API to create a payment
-                // 2. Redirect the user to the payment URL returned by Vipps
-                // 3. Handle the callback to confirm payment
-//            }
+            //            if (!empty($vippsApiKey)) {
+            // Simulate initiating a payment with Vipps
+            // In a real implementation, you would:
+            // 1. Make a POST request to Vipps API to create a payment
+            // 2. Redirect the user to the payment URL returned by Vipps
+            // 3. Handle the callback to confirm payment
+            //            }
 
             // For now, simulate a successful payment
             $enrollmentId = $this->completeEnrollment($enrollmentData);
@@ -550,44 +573,6 @@ class Shortcode {
                 <button type="submit" class="cm-pay-button">Betal</button>
             </form>
         </div>
-        <style>
-            .cm-payment-form {
-                max-width: 600px;
-                margin: 2rem auto;
-                padding: 1.5rem;
-                background-color: #f9f9f9;
-                border-radius: 8px;
-                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-                text-align: center;
-            }
-
-            .cm-payment-form h2 {
-                margin-top: 0;
-                margin-bottom: 1rem;
-                font-size: 1.75rem;
-                color: #333;
-            }
-
-            .cm-payment-form p {
-                margin-bottom: 1rem;
-                color: #666;
-            }
-
-            .cm-pay-button {
-                padding: 0.75rem 2rem;
-                background-color: #0073aa;
-                color: #fff;
-                border: none;
-                border-radius: 4px;
-                cursor: pointer;
-                font-weight: 600;
-                transition: background-color 0.3s ease;
-            }
-
-            .cm-pay-button:hover {
-                background-color: #005a87;
-            }
-        </style>
         <?php
         return ob_get_clean();
     }
