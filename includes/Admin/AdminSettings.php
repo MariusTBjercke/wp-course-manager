@@ -33,15 +33,7 @@ class AdminSettings {
      * Register settings.
      */
     public function registerSettings(): void {
-        // Register a setting section
-        add_settings_section(
-            'course_manager_general_section',
-            'Generelle innstillinger',
-            [$this, 'renderGeneralSection'],
-            'course_manager_settings'
-        );
-
-        // Register individual settings
+        // Register settings group
         register_setting('course_manager_settings', 'course_manager_items_per_page', [
             'type' => 'integer',
             'sanitize_callback' => 'absint',
@@ -78,12 +70,41 @@ class AdminSettings {
             'default' => ''
         ]);
 
-        // Add settings fields
+        // Define tabs and their sections
+        $tabs = [
+            'general' => [
+                'title' => 'Generelt',
+                'section_id' => 'course_manager_general_section',
+                'callback' => [$this, 'renderGeneralSection']
+            ],
+            'email' => [
+                'title' => 'E-post',
+                'section_id' => 'course_manager_email_section',
+                'callback' => [$this, 'renderEmailSection']
+            ],
+            'payment' => [
+                'title' => 'Betaling',
+                'section_id' => 'course_manager_payment_section',
+                'callback' => [$this, 'renderPaymentSection']
+            ]
+        ];
+
+        // Register sections for each tab
+        foreach ($tabs as $tab_id => $tab) {
+            add_settings_section(
+                $tab['section_id'],
+                $tab['title'],
+                $tab['callback'],
+                'course_manager_settings_' . $tab_id
+            );
+        }
+
+        // General tab fields
         add_settings_field(
             'course_manager_items_per_page',
             'Antall kurs per side',
             [$this, 'renderItemsPerPageField'],
-            'course_manager_settings',
+            'course_manager_settings_general',
             'course_manager_general_section'
         );
 
@@ -91,40 +112,42 @@ class AdminSettings {
             'course_manager_taxonomies',
             'Taksonomier',
             [$this, 'renderTaxonomiesField'],
-            'course_manager_settings',
+            'course_manager_settings_general',
             'course_manager_general_section'
         );
 
+        // Email tab fields
         add_settings_field(
             'course_manager_default_email_message',
             'Standard e-postbekreftelse til kunde',
             [$this, 'renderDefaultEmailMessageField'],
-            'course_manager_settings',
-            'course_manager_general_section'
+            'course_manager_settings_email',
+            'course_manager_email_section'
         );
 
         add_settings_field(
             'course_manager_admin_email',
             'E-postadresse for administratorvarsler',
             [$this, 'renderAdminEmailField'],
-            'course_manager_settings',
-            'course_manager_general_section'
+            'course_manager_settings_email',
+            'course_manager_email_section'
         );
 
         add_settings_field(
             'course_manager_admin_email_message',
-            'Standard e-postvarsel til administrator',
+            'E-postvarsel til administrator',
             [$this, 'renderAdminEmailMessageField'],
-            'course_manager_settings',
-            'course_manager_general_section'
+            'course_manager_settings_email',
+            'course_manager_email_section'
         );
 
+        // Payment tab fields
         add_settings_field(
             'course_manager_vipps_api_key',
             'Vipps API-nøkkel',
             [$this, 'renderVippsApiKeyField'],
-            'course_manager_settings',
-            'course_manager_general_section'
+            'course_manager_settings_payment',
+            'course_manager_payment_section'
         );
     }
 
@@ -154,18 +177,32 @@ class AdminSettings {
      * Render the settings page.
      */
     public function renderSettingsPage(): void {
+        $tabs = [
+            'general' => 'Generelt',
+            'email' => 'E-post',
+            'payment' => 'Betaling'
+        ];
+        $active_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'general';
+        if (!array_key_exists($active_tab, $tabs)) {
+            $active_tab = 'general';
+        }
         ?>
         <div class="wrap">
             <h1>Kursinnstillinger</h1>
 
             <h2 class="nav-tab-wrapper">
-                <a href="?post_type=course&page=course_manager_settings" class="nav-tab nav-tab-active">Generelt</a>
+                <?php foreach ($tabs as $tab_id => $tab_name): ?>
+                    <a href="?post_type=course&page=course_manager_settings&tab=<?php echo esc_attr($tab_id); ?>"
+                       class="nav-tab <?php echo $active_tab === $tab_id ? 'nav-tab-active' : ''; ?>">
+                        <?php echo esc_html($tab_name); ?>
+                    </a>
+                <?php endforeach; ?>
             </h2>
 
             <form method="post" action="options.php">
                 <?php
                 settings_fields('course_manager_settings');
-                do_settings_sections('course_manager_settings');
+                do_settings_sections('course_manager_settings_' . $active_tab);
                 submit_button();
                 ?>
             </form>
@@ -178,6 +215,20 @@ class AdminSettings {
      */
     public function renderGeneralSection(): void {
         echo '<p>Generelle innstillinger for Course Manager.</p>';
+    }
+
+    /**
+     * Render the email section.
+     */
+    public function renderEmailSection(): void {
+        echo '<p>Innstillinger for e-posthåndtering i Course Manager.</p>';
+    }
+
+    /**
+     * Render the payment section.
+     */
+    public function renderPaymentSection(): void {
+        echo '<p>Innstillinger for betalingshåndtering i Course Manager.</p>';
     }
 
     /**
@@ -314,7 +365,6 @@ class AdminSettings {
      * @param string $hook The name of the action to add the callback to.
      */
     public function enqueueAdminStyles(string $hook): void {
-        // Enqueue styles for the course manager settings page and enrollment edit screens
         if ($hook === 'course_page_course_manager_settings' || get_current_screen()->post_type === 'course_enrollment') {
             wp_enqueue_style(
                 'course-manager-admin-style',
