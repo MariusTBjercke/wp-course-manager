@@ -21,7 +21,8 @@ class Shortcode {
         });
 
         // Add rewrite rule for payment page
-        add_action('init', [$this, 'addPaymentRewriteRule']);
+        $this->addPaymentRewriteRule();
+
         add_filter('query_vars', [$this, 'addPaymentQueryVar']);
         add_action('template_redirect', [$this, 'handlePaymentPage']);
     }
@@ -556,9 +557,9 @@ class Shortcode {
                 // Redirect back to the course page with a success message
                 wp_redirect(add_query_arg('payment_success', '1', get_permalink($enrollmentData['course_id'])));
                 exit;
-            } else {
-                return '<p class="error">Det oppstod en feil ved fullføring av påmeldingen. Vennligst prøv igjen.</p>';
             }
+
+            return '<p class="error">Det oppstod en feil ved fullføring av påmeldingen. Vennligst prøv igjen.</p>';
         }
 
         ob_start();
@@ -567,6 +568,7 @@ class Shortcode {
             <h2>Betaling for påmelding til <?php echo esc_html($courseTitle); ?></h2>
             <p>Du er i ferd med å betale for <?php echo esc_html($participantCount); ?> deltakere.</p>
             <p><strong>Total pris:</strong> <?php echo esc_html($totalPrice); ?> NOK</p>
+            <p><em>Merk: Betaling simuleres midlertidig – klikk "Betal" for å fullføre påmeldingen.</em></p>
 
             <form method="post" action="">
                 <?php wp_nonce_field('cm_payment_action', 'cm_payment_nonce'); ?>
