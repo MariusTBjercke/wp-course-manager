@@ -17,7 +17,6 @@ export default class CourseManager {
    * Initialize the CourseManager.
    */
   private init(): void {
-    // Wait for DOM to be ready
     document.addEventListener('DOMContentLoaded', () => {
       this.findElements();
       this.bindEvents();
@@ -29,7 +28,7 @@ export default class CourseManager {
    */
   private findElements(): void {
     this.elements.filterButton = document.querySelector('.cm-filter-button');
-    this.elements.filterSelects = document.querySelectorAll('.cm-filter-group select[id]'); // Henter alle <select> i filtergrupper
+    this.elements.filterSelects = document.querySelectorAll('.cm-filter-group select[id]');
   }
 
   /**
@@ -38,11 +37,15 @@ export default class CourseManager {
   private bindEvents(): void {
     const {filterSelects} = this.elements;
 
-    // Add change listeners to all filter selects for auto-submit
     if (filterSelects) {
       filterSelects.forEach(select => {
         select.addEventListener('change', () => this.handleAutoSubmit());
       });
+    }
+
+    const form = document.querySelector('.cm-enrollment-form form') as HTMLFormElement;
+    if (form) {
+      form.addEventListener('submit', (e) => this.handleFormSubmit(e));
     }
   }
 
@@ -53,6 +56,18 @@ export default class CourseManager {
     const form = document.querySelector('.cm-filters form') as HTMLFormElement;
     if (form) {
       form.submit();
+    }
+  }
+
+  /**
+   * Handle form submission with confirmation prompt.
+   *
+   * @param e The form submission event.
+   */
+  private handleFormSubmit(e: Event): void {
+    const buyerName = (document.getElementById('cm_buyer_name') as HTMLInputElement)?.value;
+    if (buyerName && !confirm(`Er du sikker på at du vil melde deg på som ${buyerName}?`)) {
+      e.preventDefault();
     }
   }
 }

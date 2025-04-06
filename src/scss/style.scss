@@ -137,66 +137,144 @@
       color: #555;
     }
   }
+}
 
-  // Enrollment form
-  .cm-enrollment-form {
-    margin-top: 2rem;
-    padding: 1.5rem;
-    background-color: #f5f5f5;
+// Enrollment Form Styles (for single course pages)
+.cm-enrollment-form {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+
+  h2 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    font-size: 1.75rem;
+    color: #333;
+  }
+
+  p {
+    margin-bottom: 1.5rem;
+    color: #666;
+  }
+
+  form {
+    display: grid;
+    gap: 1.5rem;
+  }
+
+  fieldset {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border: 1px solid #ddd;
     border-radius: 4px;
+    padding: 1rem;
+    background-color: #fff;
+  }
 
-    h2 {
-      margin-top: 0;
-      margin-bottom: 1rem;
-      font-size: 1.5rem;
-    }
+  legend {
+    padding: 0 0.5rem;
+    font-weight: 600;
+    color: #0073aa;
+  }
 
-    form {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
+  .cm-form-field {
+    display: flex;
+    flex-direction: column;
+  }
 
-    label {
-      font-weight: 600;
-    }
+  .cm-address-group {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    flex-wrap: nowrap;
 
-    input[type="text"],
-    input[type="email"] {
-      width: 100%;
-      padding: 0.5rem;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      box-sizing: border-box;
-    }
+    .cm-address-field {
+      flex: 1;
 
-    button {
-      padding: 0.5rem 1.5rem;
-      background-color: #0073aa;
-      color: #fff;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: 600;
-
-      &:hover {
-        background-color: #005a87;
+      &:first-child {
+        flex: 0 0 100px;
       }
-    }
 
-    .error {
-      color: #dc3232;
-      font-weight: bold;
-    }
-
-    .success {
-      color: #46b450;
-      font-weight: bold;
+      &:last-child {
+        flex: 1;
+      }
     }
   }
 
-  // Responsive styles
-  @media (max-width: 768px) {
+  label {
+    font-weight: 400;
+    margin-bottom: 0.3rem;
+    display: block;
+
+    .required {
+      color: #dc3232;
+    }
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="date"],
+  textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease;
+
+    &:focus {
+      border-color: #0073aa;
+      outline: none;
+    }
+
+    &::placeholder {
+      color: #999;
+      font-style: italic;
+    }
+  }
+
+  textarea {
+    min-height: 100px;
+
+    &::placeholder {
+      color: #999;
+      font-style: italic;
+    }
+  }
+
+  button {
+    padding: 0.75rem 2rem;
+    background-color: #0073aa;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+
+    &:hover {
+      background-color: #005a87;
+    }
+  }
+
+  .error {
+    color: #dc3232;
+    font-weight: bold;
+  }
+
+  .success {
+    color: #46b450;
+    font-weight: bold;
+  }
+}
+
+// Responsive styles
+@media (max-width: 768px) {
+  .cm-course-manager {
     .cm-filters form {
       flex-direction: column;
 
@@ -212,6 +290,23 @@
 
     .cm-course-list {
       grid-template-columns: 1fr;
+    }
+  }
+
+  .cm-enrollment-form {
+    form {
+      grid-template-columns: 1fr;
+    }
+
+    .cm-address-group {
+      flex-direction: column;
+      gap: 0.5rem;
+
+      .cm-address-field {
+        &:first-child {
+          flex: 1;
+        }
+      }
     }
   }
 }
