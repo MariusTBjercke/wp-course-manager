@@ -185,6 +185,8 @@ class Shortcode {
 
         $courseId = get_the_ID();
         $submissionMessage = '';
+        $pricePerParticipant = (int) get_post_meta($courseId, '_course_price', true); // Get price per participant
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cm_enrollment_nonce'])) {
             if (!wp_verify_nonce($_POST['cm_enrollment_nonce'], 'cm_enroll_action')) {
                 $submissionMessage = '<p class="error">Sikkerhetskontroll feilet. Vennligst prøv igjen.</p>';
@@ -197,71 +199,132 @@ class Shortcode {
                 $buyer_city = sanitize_text_field($_POST['cm_buyer_city'] ?? '');
                 $buyer_comments = sanitize_textarea_field($_POST['cm_buyer_comments'] ?? '');
                 $buyer_company = sanitize_text_field($_POST['cm_buyer_company'] ?? '');
-                $participant_name = sanitize_text_field($_POST['cm_participant_name'] ?? '');
-                $participant_email = sanitize_email($_POST['cm_participant_email'] ?? '');
-                $participant_phone = sanitize_text_field($_POST['cm_participant_phone'] ?? '');
-                $participant_birthdate = sanitize_text_field($_POST['cm_participant_birthdate'] ?? '');
 
-                // Convert birthdate to Norwegian format
-                if (!empty($participant_birthdate)) {
-                    $date = DateTime::createFromFormat('Y-m-d', $participant_birthdate);
-                    if ($date) {
-                        $participant_birthdate = $date->format('d.m.Y');
-                    } else {
-                        $participant_birthdate = '';
+                // Get participants (array of participant data)
+                $participants = [];
+                $participant_count = isset($_POST['cm_participant_count']) ? (int) $_POST['cm_participant_count'] : 0;
+
+                // Process participants
+                for ($i = 0; $i < $participant_count; $i++) {
+                    if (isset($_POST['cm_participant_name'][$i], $_POST['cm_participant_email'][$i])) {
+                        $participant_birthdate = sanitize_text_field($_POST['cm_participant_birthdate'][$i] ?? '');
+                        if (!empty($participant_birthdate)) {
+                            $date = DateTime::createFromFormat('Y-m-d', $participant_birthdate);
+                            if ($date) {
+                                $participant_birthdate = $date->format('d.m.Y');
+                            } else {
+                                $participant_birthdate = '';
+                            }
+                        }
+
+                        $participants[] = [
+                            'name' => sanitize_text_field($_POST['cm_participant_name'][$i]),
+                            'email' => sanitize_email($_POST['cm_participant_email'][$i]),
+                            'phone' => sanitize_text_field($_POST['cm_participant_phone'][$i] ?? ''),
+                            'birthdate' => $participant_birthdate,
+                        ];
                     }
                 }
 
                 // Validate required fields
-                if (empty($buyer_name) || empty($buyer_email) || !is_email($buyer_email) ||
-                    empty($participant_name) || empty($participant_email) || !is_email($participant_email)) {
-                    $submissionMessage = '<p class="error">Vennligst fyll inn alle påkrevde felt med gyldig data.</p>';
-                }
-                // Validate postal code (4 digits)
-                elseif (!empty($buyer_postal_code) && !preg_match('/^\d{4}$/', $buyer_postal_code)) {
-                    $submissionMessage = '<p class="error">Postnummer må være 4 sifre (f.eks. 1234).</p>';
+                if (empty($buyer_name) || empty($buyer_email) || !is_email($buyer_email)) {
+                    $submissionMessage = '<p class="error">Vennligst fyll inn alle påkrevde felt for bestiller med gyldig data.</p>';
+                } elseif (empty($participants)) {
+                    $submissionMessage = '<p class="error">Minst én deltaker må legges til.</p>';
                 } else {
-                    $enrollmentId = wp_insert_post([
-                        'post_type' => 'course_enrollment',
-                        'post_title' => sprintf(
-                            'Påmelding til %s av %s (bestilt av %s)',
-                            get_the_title($courseId),
-                            $participant_name,
-                            $buyer_name
-                        ),
-                        'post_status' => 'publish',
-                    ]);
+                    // Validate participants
+                    $validParticipants = true;
+                    foreach ($participants as $participant) {
+                        if (empty($participant['name']) || empty($participant['email']) || !is_email($participant['email'])) {
+                            $validParticipants = false;
+                            break;
+                        }
+                    }
 
-                    if ($enrollmentId) {
-                        update_post_meta($enrollmentId, 'cm_course_id', $courseId);
-                        update_post_meta($enrollmentId, 'cm_buyer_name', $buyer_name);
-                        update_post_meta($enrollmentId, 'cm_buyer_email', $buyer_email);
-                        update_post_meta($enrollmentId, 'cm_buyer_phone', $buyer_phone);
-                        update_post_meta($enrollmentId, 'cm_buyer_street_address', $buyer_street_address);
-                        update_post_meta($enrollmentId, 'cm_buyer_postal_code', $buyer_postal_code);
-                        update_post_meta($enrollmentId, 'cm_buyer_city', $buyer_city);
-                        update_post_meta($enrollmentId, 'cm_buyer_comments', $buyer_comments);
-                        update_post_meta($enrollmentId, 'cm_buyer_company', $buyer_company);
-                        update_post_meta($enrollmentId, 'cm_participant_name', $participant_name);
-                        update_post_meta($enrollmentId, 'cm_participant_email', $participant_email);
-                        update_post_meta($enrollmentId, 'cm_participant_phone', $participant_phone);
-                        update_post_meta($enrollmentId, 'cm_participant_birthdate', $participant_birthdate);
-
-                        $submissionMessage = '<p class="success">Du har meldt deg på kurset! En bekreftelse er sendt til ' . esc_html(
-                                $buyer_email
-                            ) . '.</p>';
-
-                        $subject = 'Bekreftelse på kurspåmelding';
-                        $custom_message = get_post_meta($courseId, '_course_custom_email_message', true);
-                        $default_message = get_option(
-                            'course_manager_default_email_message',
-                            "Hei %s,\n\nTakk for at du meldte deg på %s! Vi gleder oss til å se deg.\n\nBeste hilsener,\nKursadministrator-teamet"
-                        );
-                        $message = !empty($custom_message) ? $custom_message : $default_message;
-                        $message = sprintf($message, $buyer_name, get_the_title($courseId));
-                        wp_mail($buyer_email, $subject, $message);
+                    if (!$validParticipants) {
+                        $submissionMessage = '<p class="error">Vennligst fyll inn alle påkrevde felt for deltakere med gyldig data.</p>';
+                    }
+                    // Validate postal code (4 digits)
+                    elseif (!empty($buyer_postal_code) && !preg_match('/^\d{4}$/', $buyer_postal_code)) {
+                        $submissionMessage = '<p class="error">Postnummer må være 4 sifre (f.eks. 1234).</p>';
                     } else {
-                        $submissionMessage = '<p class="error">Det oppstod en feil ved registrering av deg i kurset. Vennligst prøv igjen.</p>';
+                        $enrollmentId = wp_insert_post([
+                            'post_type' => 'course_enrollment',
+                            'post_title' => sprintf(
+                                'Påmelding til %s av %d deltakere (bestilt av %s)',
+                                get_the_title($courseId),
+                                count($participants),
+                                $buyer_name
+                            ),
+                            'post_status' => 'publish',
+                        ]);
+
+                        if ($enrollmentId) {
+                            $totalPrice = $pricePerParticipant * count($participants);
+
+                            update_post_meta($enrollmentId, 'cm_course_id', $courseId);
+                            update_post_meta($enrollmentId, 'cm_buyer_name', $buyer_name);
+                            update_post_meta($enrollmentId, 'cm_buyer_email', $buyer_email);
+                            update_post_meta($enrollmentId, 'cm_buyer_phone', $buyer_phone);
+                            update_post_meta($enrollmentId, 'cm_buyer_street_address', $buyer_street_address);
+                            update_post_meta($enrollmentId, 'cm_buyer_postal_code', $buyer_postal_code);
+                            update_post_meta($enrollmentId, 'cm_buyer_city', $buyer_city);
+                            update_post_meta($enrollmentId, 'cm_buyer_comments', $buyer_comments);
+                            update_post_meta($enrollmentId, 'cm_buyer_company', $buyer_company);
+                            update_post_meta($enrollmentId, 'cm_participants', $participants);
+                            update_post_meta($enrollmentId, 'cm_total_price', $totalPrice);
+
+                            $submissionMessage = '<p class="success">Du har meldt deg på kurset! En bekreftelse er sendt til ' . esc_html($buyer_email) . '.</p>';
+
+                            // Send confirmation email to user
+                            $subject = 'Bekreftelse på kurspåmelding';
+                            $custom_message = get_post_meta($courseId, '_course_custom_email_message', true);
+                            $default_message = get_option(
+                                'course_manager_default_email_message',
+                                "Hei %s,\n\nTakk for at du meldte deg på %s! Vi gleder oss til å se deg.\n\nAntall deltakere: %d\nTotal pris: %d NOK\n\nBeste hilsener,\nKursadministrator-teamet"
+                            );
+                            $message = !empty($custom_message) ? $custom_message : $default_message;
+
+                            // Include participant names in the email
+                            $participantNames = array_map(function($participant) {
+                                return $participant['name'];
+                            }, $participants);
+                            $participantList = implode("\n- ", $participantNames);
+                            $message = sprintf($message, $buyer_name, get_the_title($courseId), count($participants), $totalPrice);
+                            $message .= "\n\nDeltakere:\n- " . $participantList;
+
+                            wp_mail($buyer_email, $subject, $message);
+
+                            // Send notification email to admin
+                            $adminEmail = get_option('course_manager_admin_email');
+                            if (!empty($adminEmail) && is_email($adminEmail)) {
+                                $adminSubject = 'Ny påmelding til ' . get_the_title($courseId);
+                                $adminMessage = "Hei,\n\nEn ny påmelding har blitt registrert for kurset \"" . get_the_title($courseId) . "\".\n\n";
+                                $adminMessage .= "Bestillerinformasjon:\n";
+                                $adminMessage .= "- Navn: " . $buyer_name . "\n";
+                                $adminMessage .= "- E-post: " . $buyer_email . "\n";
+                                $adminMessage .= "- Telefonnummer: " . $buyer_phone . "\n";
+                                $adminMessage .= "- Firma: " . $buyer_company . "\n";
+                                $adminMessage .= "- Gateadresse: " . $buyer_street_address . "\n";
+                                $adminMessage .= "- Postnummer: " . $buyer_postal_code . "\n";
+                                $adminMessage .= "- Poststed: " . $buyer_city . "\n";
+                                $adminMessage .= "- Kommentarer/spørsmål: " . $buyer_comments . "\n\n";
+                                $adminMessage .= "Deltakere (" . count($participants) . "):\n";
+                                foreach ($participants as $index => $participant) {
+                                    $adminMessage .= "Deltaker " . ($index + 1) . ":\n";
+                                    $adminMessage .= "- Navn: " . $participant['name'] . "\n";
+                                    $adminMessage .= "- E-post: " . $participant['email'] . "\n";
+                                    $adminMessage .= "- Telefonnummer: " . $participant['phone'] . "\n";
+                                    $adminMessage .= "- Fødselsdato: " . $participant['birthdate'] . "\n\n";
+                                }
+                                $adminMessage .= "Total pris: " . $totalPrice . " NOK\n\n";
+                                $adminMessage .= "Beste hilsener,\nKursadministrator-systemet";
+
+                                wp_mail($adminEmail, $adminSubject, $adminMessage);
+                            }
+                        } else {
+                            $submissionMessage = '<p class="error">Det oppstod en feil ved registrering av deg i kurset. Vennligst prøv igjen.</p>';
+                        }
                     }
                 }
             }
@@ -270,19 +333,15 @@ class Shortcode {
         ob_start();
         ?>
         <div class="cm-enrollment-form">
-            <h2>Påmelding til <?php
-                echo esc_html(get_the_title($courseId)); ?></h2>
+            <h2>Påmelding til <?php echo esc_html(get_the_title($courseId)); ?></h2>
             <p>Fyll inn detaljene nedenfor for å melde deg på kurset.</p>
-            <?php
-            if ($submissionMessage): ?>
-                <?php
-                echo $submissionMessage; ?>
-            <?php
-            endif; ?>
+            <?php if ($submissionMessage): ?>
+                <?php echo $submissionMessage; ?>
+            <?php endif; ?>
 
             <form method="post" action="">
-                <?php
-                wp_nonce_field('cm_enroll_action', 'cm_enrollment_nonce'); ?>
+                <?php wp_nonce_field('cm_enroll_action', 'cm_enrollment_nonce'); ?>
+                <input type="hidden" name="cm_participant_count" id="cm_participant_count" value="0">
 
                 <fieldset>
                     <legend>Bestillerinformasjon</legend>
@@ -329,29 +388,18 @@ class Shortcode {
                 </fieldset>
 
                 <fieldset>
-                    <legend>Deltagerinformasjon</legend>
-                    <div class="cm-form-field">
-                        <label for="cm_participant_name">Navn <span class="required">*</span></label>
-                        <input type="text" name="cm_participant_name" id="cm_participant_name" required placeholder="Kari Nordmann">
-                    </div>
-
-                    <div class="cm-form-field">
-                        <label for="cm_participant_email">E-post <span class="required">*</span></label>
-                        <input type="email" name="cm_participant_email" id="cm_participant_email" required placeholder="kari@eksempel.no">
-                    </div>
-
-                    <div class="cm-form-field">
-                        <label for="cm_participant_phone">Telefonnummer</label>
-                        <input type="tel" name="cm_participant_phone" id="cm_participant_phone" placeholder="87654321">
-                    </div>
-
-                    <div class="cm-form-field">
-                        <label for="cm_participant_birthdate">Fødselsdato</label>
-                        <input type="date" name="cm_participant_birthdate" id="cm_participant_birthdate">
-                    </div>
+                    <legend>Deltakerinformasjon</legend>
+                    <p class="cm-participant-info">Minst én deltaker må legges til.</p>
+                    <div id="cm-participant-list"></div>
+                    <button type="button" id="cm-add-participant" class="cm-add-participant">Legg til deltaker</button>
                 </fieldset>
 
-                <button type="submit">Meld deg på nå</button>
+                <div class="cm-total-price">
+                    <p><strong>Total pris:</strong> <span id="cm-total-price-value">0</span> NOK (for <span id="cm-participant-count">0</span> deltakere<?php if ($pricePerParticipant) { echo ' á ' . $pricePerParticipant . ' NOK'; } ?>)</p>
+                    <input type="hidden" id="cm-price-per-participant" value="<?php echo $pricePerParticipant; ?>">
+                </div>
+
+                <button type="submit">Gå til betaling</button>
             </form>
         </div>
         <?php

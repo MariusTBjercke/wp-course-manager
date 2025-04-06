@@ -57,7 +57,13 @@ class AdminSettings {
         register_setting('course_manager_settings', 'course_manager_default_email_message', [
             'type' => 'string',
             'sanitize_callback' => 'sanitize_textarea_field',
-            'default' => "Hei %s,\n\nTakk for at du meldte deg på %s! Vi gleder oss til å se deg.\n\nBeste hilsener,\nKursadministrator-teamet"
+            'default' => "Hei %s,\n\nTakk for at du meldte deg på %s! Vi gleder oss til å se deg.\n\nAntall deltakere: %d\nTotal pris: %d NOK\n\nBeste hilsener,\nKursadministrator-teamet"
+        ]);
+
+        register_setting('course_manager_settings', 'course_manager_admin_email', [
+            'type' => 'string',
+            'sanitize_callback' => 'sanitize_email',
+            'default' => get_option('admin_email') // Default to the admin email
         ]);
 
         // Add settings fields
@@ -81,6 +87,14 @@ class AdminSettings {
             'course_manager_default_email_message',
             'Standard e-postbekreftelse',
             [$this, 'renderDefaultEmailMessageField'],
+            'course_manager_settings',
+            'course_manager_general_section'
+        );
+
+        add_settings_field(
+            'course_manager_admin_email',
+            'E-postadresse for administratorvarsler',
+            [$this, 'renderAdminEmailField'],
             'course_manager_settings',
             'course_manager_general_section'
         );
@@ -205,10 +219,21 @@ class AdminSettings {
      * Render the default email message field.
      */
     public function renderDefaultEmailMessageField(): void {
-        $value = get_option('course_manager_default_email_message', "Hei %s,\n\nTakk for at du meldte deg på %s! Vi gleder oss til å se deg.\n\nBeste hilsener,\nKursadministrator-teamet");
+        $value = get_option('course_manager_default_email_message', "Hei %s,\n\nTakk for at du meldte deg på %s! Vi gleder oss til å se deg.\n\nAntall deltakere: %d\nTotal pris: %d NOK\n\nBeste hilsener,\nKursadministrator-teamet");
         ?>
         <textarea name="course_manager_default_email_message" rows="5" cols="50"><?php echo esc_textarea($value); ?></textarea>
-        <p class="description">Standard melding som sendes til brukere ved påmelding. Bruk %s for navn og kursnavn (i den rekkefølgen).</p>
+        <p class="description">Standard melding som sendes til brukere ved påmelding. Bruk %s for navn og kursnavn, %d for antall deltakere og total pris (i den rekkefølgen).</p>
+        <?php
+    }
+
+    /**
+     * Render the admin email field.
+     */
+    public function renderAdminEmailField(): void {
+        $value = get_option('course_manager_admin_email', get_option('admin_email'));
+        ?>
+        <input type="email" name="course_manager_admin_email" value="<?php echo esc_attr($value); ?>" style="width: 300px;" />
+        <p class="description">E-postadressen som skal motta varsler om nye påmeldinger. La stå tomt for å deaktivere varsler.</p>
         <?php
     }
 
@@ -218,16 +243,14 @@ class AdminSettings {
      * @param string $hook The name of the action to add the callback to.
      */
     public function enqueueAdminStyles(string $hook): void {
-        // Only enqueue styles for the course manager settings page.
-        if ($hook !== 'course_page_course_manager_settings') {
-            return;
+        // Enqueue styles for the course manager settings page and enrollment edit screens
+        if ($hook === 'course_page_course_manager_settings' || get_current_screen()->post_type === 'course_enrollment') {
+            wp_enqueue_style(
+                'course-manager-admin-style',
+                plugin_dir_url(__DIR__) . '../dist/admin.css',
+                [],
+                filemtime(plugin_dir_path(__DIR__) . '../dist/admin.css')
+            );
         }
-
-        wp_enqueue_style(
-            'course-manager-admin-style',
-            plugin_dir_url(__DIR__) . '../dist/admin.css',
-            [],
-            filemtime(plugin_dir_path(__DIR__) . '../dist/admin.css')
-        );
     }
 }

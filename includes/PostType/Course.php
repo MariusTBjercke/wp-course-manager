@@ -53,7 +53,7 @@ class Course {
         // Dynamically add taxonomies to the course post type
         add_filter('register_post_type_args', [$this, 'addDynamicTaxonomies'], 10, 2);
 
-        // Register meta box for custom email message
+        // Register meta boxes for custom email message and price
         add_action('add_meta_boxes', [$this, 'addMetaBoxes']);
         add_action('save_post', [$this, 'saveMetaBoxData']);
     }
@@ -87,6 +87,15 @@ class Course {
             'normal',
             'default'
         );
+
+        add_meta_box(
+            'course_price',
+            'Pris per deltaker',
+            [$this, 'renderPriceMetaBox'],
+            'course',
+            'normal',
+            'default'
+        );
     }
 
     /**
@@ -107,11 +116,29 @@ class Course {
     }
 
     /**
+     * Render the price meta box.
+     *
+     * @param WP_Post $post The current post object.
+     */
+    public function renderPriceMetaBox(WP_Post $post): void {
+        $price = get_post_meta($post->ID, '_course_price', true);
+        wp_nonce_field('course_price_nonce', 'course_price_nonce');
+        ?>
+        <p>
+            <label for="course_price">Pris per deltaker (i NOK):</label><br>
+            <input type="number" name="course_price" id="course_price" value="<?php echo esc_attr($price); ?>" step="1" min="0">
+        </p>
+        <p class="description">Angi prisen per deltaker for dette kurset.</p>
+        <?php
+    }
+
+    /**
      * Save the meta box data.
      *
      * @param integer $post_id The ID of the post being saved.
      */
     public function saveMetaBoxData(int $post_id): void {
+        // Save email message
         if (!isset($_POST['course_email_message_nonce']) || !wp_verify_nonce($_POST['course_email_message_nonce'], 'course_email_message_nonce')) {
             return;
         }
@@ -122,6 +149,15 @@ class Course {
 
         if (isset($_POST['course_custom_email_message'])) {
             update_post_meta($post_id, '_course_custom_email_message', sanitize_textarea_field($_POST['course_custom_email_message']));
+        }
+
+        // Save price
+        if (!isset($_POST['course_price_nonce']) || !wp_verify_nonce($_POST['course_price_nonce'], 'course_price_nonce')) {
+            return;
+        }
+
+        if (isset($_POST['course_price'])) {
+            update_post_meta($post_id, '_course_price', absint($_POST['course_price']));
         }
     }
 }

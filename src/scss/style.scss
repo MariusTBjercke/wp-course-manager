@@ -180,6 +180,76 @@
     color: #0073aa;
   }
 
+  .cm-participant-info {
+    font-style: italic;
+    color: #666;
+    margin-bottom: 1rem;
+  }
+
+  .cm-participant-entry {
+    border: 1px solid #eee;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    position: relative;
+    background-color: #f5f5f5;
+
+    .cm-participant-number {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+
+    .cm-form-field {
+      margin-bottom: 0.5rem;
+    }
+
+    .cm-remove-participant {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: none;
+      border: none;
+      color: #dc3232;
+      font-size: 1.2rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0.2rem 0.5rem;
+
+      &:hover {
+        color: #b32d2e;
+      }
+    }
+  }
+
+  .cm-add-participant {
+    padding: 0.5rem 1rem;
+    background-color: #46b450;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+
+    &:hover {
+      background-color: #389b3e;
+    }
+  }
+
+  .cm-total-price {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    text-align: center;
+
+    p {
+      margin: 0;
+      font-size: 1.1rem;
+      color: #333;
+    }
+  }
+
   .cm-form-field {
     display: flex;
     flex-direction: column;

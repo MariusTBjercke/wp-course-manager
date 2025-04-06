@@ -24,17 +24,22 @@ class ContentFilter {
             return $content;
         }
 
-        // Add course metadata (e.g., location, start date)
+        // Add course metadata (e.g., location, start date, price)
         $location = get_post_meta(get_the_ID(), 'sted', true);
         $startDate = get_post_meta(get_the_ID(), 'startdato', true);
+        $price = get_post_meta(get_the_ID(), '_course_price', true);
 
-        $metaHtml = '';
+        $metaHtml = '<div class="cm-course-meta-details">';
         if ($location) {
             $metaHtml .= '<p><strong>Sted:</strong> ' . esc_html($location) . '</p>';
         }
         if ($startDate) {
             $metaHtml .= '<p><strong>Startdato:</strong> ' . esc_html($startDate) . '</p>';
         }
+        if ($price) {
+            $metaHtml .= '<p><strong>Pris per deltaker:</strong> ' . esc_html($price) . ' NOK</p>';
+        }
+        $metaHtml .= '</div>';
 
         // Check if the content already contains the enrollment form shortcode
         if (has_shortcode($content, 'course_enrollment_form')) {

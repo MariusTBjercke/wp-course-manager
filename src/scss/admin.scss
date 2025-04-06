@@ -44,3 +44,44 @@
     background-color: #005a87;
   }
 }
+
+.cm-enrollment-details {
+  h3 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-size: 1.2em;
+    color: #23282d;
+  }
+
+  table {
+    margin-bottom: 1.5em;
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  table th {
+    width: 150px;
+    vertical-align: top;
+    padding: 8px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    font-weight: 600;
+    text-align: left;
+  }
+
+  table td {
+    vertical-align: top;
+    padding: 8px;
+    border: 1px solid #ddd;
+  }
+
+  table a {
+    color: #0073aa;
+    text-decoration: none;
+
+    &:hover {
+      color: #005a87;
+      text-decoration: underline;
+    }
+  }
+}
