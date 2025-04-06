@@ -14,10 +14,49 @@ class Shortcode {
     public function register(): void {
         add_shortcode('course_manager', [$this, 'renderCourseList']);
         add_shortcode('course_enrollment_form', [$this, 'renderEnrollmentForm']);
+        add_shortcode('course_payment_form', [$this, 'renderPaymentForm']);
 
         add_filter('wp_mail_from', function ($email) {
             return get_option('admin_email') ?: 'no-reply@' . wp_parse_url(get_site_url(), PHP_URL_HOST);
         });
+
+        // Add rewrite rule for payment page
+        add_action('init', [$this, 'addPaymentRewriteRule']);
+        add_filter('query_vars', [$this, 'addPaymentQueryVar']);
+        add_action('template_redirect', [$this, 'handlePaymentPage']);
+    }
+
+    /**
+     * Add rewrite rule for payment page.
+     */
+    public function addPaymentRewriteRule(): void {
+        add_rewrite_rule(
+            'course-payment/([^/]+)/?$',
+            'index.php?course_payment_id=$matches[1]',
+            'top'
+        );
+    }
+
+    /**
+     * Add query var for payment page.
+     *
+     * @param array $vars Existing query vars.
+     * @return array Updated query vars.
+     */
+    public function addPaymentQueryVar(array $vars): array {
+        $vars[] = 'course_payment_id';
+        return $vars;
+    }
+
+    /**
+     * Handle payment page template redirect.
+     */
+    public function handlePaymentPage(): void {
+        $paymentId = get_query_var('course_payment_id');
+        if ($paymentId) {
+            echo $this->renderPaymentForm(['payment_id' => $paymentId]);
+            exit;
+        }
     }
 
     /**
@@ -248,82 +287,37 @@ class Shortcode {
                     elseif (!empty($buyer_postal_code) && !preg_match('/^\d{4}$/', $buyer_postal_code)) {
                         $submissionMessage = '<p class="error">Postnummer må være 4 sifre (f.eks. 1234).</p>';
                     } else {
-                        $enrollmentId = wp_insert_post([
-                            'post_type' => 'course_enrollment',
-                            'post_title' => sprintf(
-                                'Påmelding til %s av %d deltakere (bestilt av %s)',
-                                get_the_title($courseId),
-                                count($participants),
-                                $buyer_name
-                            ),
-                            'post_status' => 'publish',
-                        ]);
+                        $totalPrice = $pricePerParticipant * count($participants);
 
-                        if ($enrollmentId) {
-                            $totalPrice = $pricePerParticipant * count($participants);
+                        // Prepare enrollment data
+                        $enrollmentData = [
+                            'course_id' => $courseId,
+                            'buyer_name' => $buyer_name,
+                            'buyer_email' => $buyer_email,
+                            'buyer_phone' => $buyer_phone,
+                            'buyer_street_address' => $buyer_street_address,
+                            'buyer_postal_code' => $buyer_postal_code,
+                            'buyer_city' => $buyer_city,
+                            'buyer_comments' => $buyer_comments,
+                            'buyer_company' => $buyer_company,
+                            'participants' => $participants,
+                            'total_price' => $totalPrice,
+                        ];
 
-                            update_post_meta($enrollmentId, 'cm_course_id', $courseId);
-                            update_post_meta($enrollmentId, 'cm_buyer_name', $buyer_name);
-                            update_post_meta($enrollmentId, 'cm_buyer_email', $buyer_email);
-                            update_post_meta($enrollmentId, 'cm_buyer_phone', $buyer_phone);
-                            update_post_meta($enrollmentId, 'cm_buyer_street_address', $buyer_street_address);
-                            update_post_meta($enrollmentId, 'cm_buyer_postal_code', $buyer_postal_code);
-                            update_post_meta($enrollmentId, 'cm_buyer_city', $buyer_city);
-                            update_post_meta($enrollmentId, 'cm_buyer_comments', $buyer_comments);
-                            update_post_meta($enrollmentId, 'cm_buyer_company', $buyer_company);
-                            update_post_meta($enrollmentId, 'cm_participants', $participants);
-                            update_post_meta($enrollmentId, 'cm_total_price', $totalPrice);
-
-                            $submissionMessage = '<p class="success">Du har meldt deg på kurset! En bekreftelse er sendt til ' . esc_html($buyer_email) . '.</p>';
-
-                            // Send confirmation email to user
-                            $subject = 'Bekreftelse på kurspåmelding';
-                            $custom_message = get_post_meta($courseId, '_course_custom_email_message', true);
-                            $default_message = get_option(
-                                'course_manager_default_email_message',
-                                "Hei %s,\n\nTakk for at du meldte deg på %s! Vi gleder oss til å se deg.\n\nAntall deltakere: %d\nTotal pris: %d NOK\n\nBeste hilsener,\nKursadministrator-teamet"
-                            );
-                            $message = !empty($custom_message) ? $custom_message : $default_message;
-
-                            // Include participant names in the email
-                            $participantNames = array_map(function($participant) {
-                                return $participant['name'];
-                            }, $participants);
-                            $participantList = implode("\n- ", $participantNames);
-                            $message = sprintf($message, $buyer_name, get_the_title($courseId), count($participants), $totalPrice);
-                            $message .= "\n\nDeltakere:\n- " . $participantList;
-
-                            wp_mail($buyer_email, $subject, $message);
-
-                            // Send notification email to admin
-                            $adminEmail = get_option('course_manager_admin_email');
-                            if (!empty($adminEmail) && is_email($adminEmail)) {
-                                $adminSubject = 'Ny påmelding til ' . get_the_title($courseId);
-                                $adminMessage = "Hei,\n\nEn ny påmelding har blitt registrert for kurset \"" . get_the_title($courseId) . "\".\n\n";
-                                $adminMessage .= "Bestillerinformasjon:\n";
-                                $adminMessage .= "- Navn: " . $buyer_name . "\n";
-                                $adminMessage .= "- E-post: " . $buyer_email . "\n";
-                                $adminMessage .= "- Telefonnummer: " . $buyer_phone . "\n";
-                                $adminMessage .= "- Firma: " . $buyer_company . "\n";
-                                $adminMessage .= "- Gateadresse: " . $buyer_street_address . "\n";
-                                $adminMessage .= "- Postnummer: " . $buyer_postal_code . "\n";
-                                $adminMessage .= "- Poststed: " . $buyer_city . "\n";
-                                $adminMessage .= "- Kommentarer/spørsmål: " . $buyer_comments . "\n\n";
-                                $adminMessage .= "Deltakere (" . count($participants) . "):\n";
-                                foreach ($participants as $index => $participant) {
-                                    $adminMessage .= "Deltaker " . ($index + 1) . ":\n";
-                                    $adminMessage .= "- Navn: " . $participant['name'] . "\n";
-                                    $adminMessage .= "- E-post: " . $participant['email'] . "\n";
-                                    $adminMessage .= "- Telefonnummer: " . $participant['phone'] . "\n";
-                                    $adminMessage .= "- Fødselsdato: " . $participant['birthdate'] . "\n\n";
-                                }
-                                $adminMessage .= "Total pris: " . $totalPrice . " NOK\n\n";
-                                $adminMessage .= "Beste hilsener,\nKursadministrator-systemet";
-
-                                wp_mail($adminEmail, $adminSubject, $adminMessage);
+                        // If total price is 0, complete the enrollment directly
+                        if ($totalPrice === 0) {
+                            $enrollmentId = $this->completeEnrollment($enrollmentData);
+                            if ($enrollmentId) {
+                                $submissionMessage = '<p class="success">Påmeldingen er fullført! En bekreftelse er sendt til ' . esc_html($buyer_email) . '.</p>';
+                            } else {
+                                $submissionMessage = '<p class="error">Det oppstod en feil ved registrering av påmeldingen. Vennligst prøv igjen.</p>';
                             }
                         } else {
-                            $submissionMessage = '<p class="error">Det oppstod en feil ved registrering av deg i kurset. Vennligst prøv igjen.</p>';
+                            // Store enrollment data temporarily and redirect to payment page
+                            $paymentId = wp_generate_uuid4();
+                            set_transient('course_payment_' . $paymentId, $enrollmentData, HOUR_IN_SECONDS); // Store for 1 hour
+                            wp_redirect(home_url('/course-payment/' . $paymentId));
+                            exit;
                         }
                     }
                 }
@@ -402,6 +396,198 @@ class Shortcode {
                 <button type="submit">Gå til betaling</button>
             </form>
         </div>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * Complete an enrollment by saving it to the database and sending emails.
+     *
+     * @param array $enrollmentData The enrollment data to save.
+     * @return int|bool The enrollment ID on success, false on failure.
+     */
+    private function completeEnrollment(array $enrollmentData) {
+        $courseId = $enrollmentData['course_id'];
+        $buyer_name = $enrollmentData['buyer_name'];
+        $buyer_email = $enrollmentData['buyer_email'];
+        $buyer_phone = $enrollmentData['buyer_phone'];
+        $buyer_street_address = $enrollmentData['buyer_street_address'];
+        $buyer_postal_code = $enrollmentData['buyer_postal_code'];
+        $buyer_city = $enrollmentData['buyer_city'];
+        $buyer_comments = $enrollmentData['buyer_comments'];
+        $buyer_company = $enrollmentData['buyer_company'];
+        $participants = $enrollmentData['participants'];
+        $totalPrice = $enrollmentData['total_price'];
+
+        $enrollmentId = wp_insert_post([
+            'post_type' => 'course_enrollment',
+            'post_title' => sprintf(
+                'Påmelding til %s av %d deltakere (bestilt av %s)',
+                get_the_title($courseId),
+                count($participants),
+                $buyer_name
+            ),
+            'post_status' => 'publish',
+        ]);
+
+        if ($enrollmentId) {
+            update_post_meta($enrollmentId, 'cm_course_id', $courseId);
+            update_post_meta($enrollmentId, 'cm_buyer_name', $buyer_name);
+            update_post_meta($enrollmentId, 'cm_buyer_email', $buyer_email);
+            update_post_meta($enrollmentId, 'cm_buyer_phone', $buyer_phone);
+            update_post_meta($enrollmentId, 'cm_buyer_street_address', $buyer_street_address);
+            update_post_meta($enrollmentId, 'cm_buyer_postal_code', $buyer_postal_code);
+            update_post_meta($enrollmentId, 'cm_buyer_city', $buyer_city);
+            update_post_meta($enrollmentId, 'cm_buyer_comments', $buyer_comments);
+            update_post_meta($enrollmentId, 'cm_buyer_company', $buyer_company);
+            update_post_meta($enrollmentId, 'cm_participants', $participants);
+            update_post_meta($enrollmentId, 'cm_total_price', $totalPrice);
+
+            // Send confirmation email to user
+            $subject = 'Bekreftelse på kurspåmelding';
+            $custom_message = get_post_meta($courseId, '_course_custom_email_message', true);
+            $default_message = get_option(
+                'course_manager_default_email_message',
+                "Hei %s,\n\nTakk for at du meldte deg på %s! Vi gleder oss til å se deg.\n\nAntall deltakere: %d\nTotal pris: %d NOK\n\nBeste hilsener,\nKursadministrator-teamet"
+            );
+            $message = !empty($custom_message) ? $custom_message : $default_message;
+
+            // Include participant names in the email
+            $participantNames = array_map(function($participant) {
+                return $participant['name'];
+            }, $participants);
+            $participantList = implode("\n- ", $participantNames);
+            $message = sprintf($message, $buyer_name, get_the_title($courseId), count($participants), $totalPrice);
+            $message .= "\n\nDeltakere:\n- " . $participantList;
+
+            wp_mail($buyer_email, $subject, $message);
+
+            // Send notification email to admin
+            $adminEmail = get_option('course_manager_admin_email');
+            if (!empty($adminEmail) && is_email($adminEmail)) {
+                $adminSubject = 'Ny påmelding til ' . get_the_title($courseId);
+                $adminMessage = "Hei,\n\nEn ny påmelding har blitt registrert for kurset \"" . get_the_title($courseId) . "\".\n\n";
+                $adminMessage .= "Bestillerinformasjon:\n";
+                $adminMessage .= "- Navn: " . $buyer_name . "\n";
+                $adminMessage .= "- E-post: " . $buyer_email . "\n";
+                $adminMessage .= "- Telefonnummer: " . $buyer_phone . "\n";
+                $adminMessage .= "- Firma: " . $buyer_company . "\n";
+                $adminMessage .= "- Gateadresse: " . $buyer_street_address . "\n";
+                $adminMessage .= "- Postnummer: " . $buyer_postal_code . "\n";
+                $adminMessage .= "- Poststed: " . $buyer_city . "\n";
+                $adminMessage .= "- Kommentarer/spørsmål: " . $buyer_comments . "\n\n";
+                $adminMessage .= "Deltakere (" . count($participants) . "):\n";
+                foreach ($participants as $index => $participant) {
+                    $adminMessage .= "Deltaker " . ($index + 1) . ":\n";
+                    $adminMessage .= "- Navn: " . $participant['name'] . "\n";
+                    $adminMessage .= "- E-post: " . $participant['email'] . "\n";
+                    $adminMessage .= "- Telefonnummer: " . $participant['phone'] . "\n";
+                    $adminMessage .= "- Fødselsdato: " . $participant['birthdate'] . "\n\n";
+                }
+                $adminMessage .= "Total pris: " . $totalPrice . " NOK\n\n";
+                $adminMessage .= "Beste hilsener,\nKursadministrator-systemet";
+
+                wp_mail($adminEmail, $adminSubject, $adminMessage);
+            }
+
+            return $enrollmentId;
+        }
+
+        return false;
+    }
+
+    /**
+     * Render the payment form shortcode.
+     *
+     * @param array $atts Shortcode attributes.
+     * @return string HTML output for the payment form.
+     */
+    public function renderPaymentForm(array $atts = []): string {
+        $atts = shortcode_atts(['payment_id' => ''], $atts);
+        $paymentId = sanitize_text_field($atts['payment_id']);
+        $enrollmentData = get_transient('course_payment_' . $paymentId);
+
+        if (!$enrollmentData) {
+            return '<p class="error">Ugyldig eller utløpt påmelding. Vennligst prøv igjen.</p>';
+        }
+
+        $totalPrice = $enrollmentData['total_price'];
+        $courseTitle = get_the_title($enrollmentData['course_id']);
+        $participantCount = count($enrollmentData['participants']);
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cm_payment_nonce']) && wp_verify_nonce($_POST['cm_payment_nonce'], 'cm_payment_action')) {
+            $vippsApiKey = get_option('course_manager_vipps_api_key');
+//            if (!empty($vippsApiKey)) {
+                // Simulate initiating a payment with Vipps
+                // In a real implementation, you would:
+                // 1. Make a POST request to Vipps API to create a payment
+                // 2. Redirect the user to the payment URL returned by Vipps
+                // 3. Handle the callback to confirm payment
+//            }
+
+            // For now, simulate a successful payment
+            $enrollmentId = $this->completeEnrollment($enrollmentData);
+            if ($enrollmentId) {
+                // Delete the transient after successful enrollment
+                delete_transient('course_payment_' . $paymentId);
+                // Redirect back to the course page with a success message
+                wp_redirect(add_query_arg('payment_success', '1', get_permalink($enrollmentData['course_id'])));
+                exit;
+            } else {
+                return '<p class="error">Det oppstod en feil ved fullføring av påmeldingen. Vennligst prøv igjen.</p>';
+            }
+        }
+
+        ob_start();
+        ?>
+        <div class="cm-payment-form">
+            <h2>Betaling for påmelding til <?php echo esc_html($courseTitle); ?></h2>
+            <p>Du er i ferd med å betale for <?php echo esc_html($participantCount); ?> deltakere.</p>
+            <p><strong>Total pris:</strong> <?php echo esc_html($totalPrice); ?> NOK</p>
+
+            <form method="post" action="">
+                <?php wp_nonce_field('cm_payment_action', 'cm_payment_nonce'); ?>
+                <button type="submit" class="cm-pay-button">Betal</button>
+            </form>
+        </div>
+        <style>
+            .cm-payment-form {
+                max-width: 600px;
+                margin: 2rem auto;
+                padding: 1.5rem;
+                background-color: #f9f9f9;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+                text-align: center;
+            }
+
+            .cm-payment-form h2 {
+                margin-top: 0;
+                margin-bottom: 1rem;
+                font-size: 1.75rem;
+                color: #333;
+            }
+
+            .cm-payment-form p {
+                margin-bottom: 1rem;
+                color: #666;
+            }
+
+            .cm-pay-button {
+                padding: 0.75rem 2rem;
+                background-color: #0073aa;
+                color: #fff;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-weight: 600;
+                transition: background-color 0.3s ease;
+            }
+
+            .cm-pay-button:hover {
+                background-color: #005a87;
+            }
+        </style>
         <?php
         return ob_get_clean();
     }

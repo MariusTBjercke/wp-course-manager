@@ -28,5 +28,23 @@ class Init {
         if (is_admin()) {
             (new AdminSettings())->register();
         }
+
+        // Flush rewrite rules on activation and deactivation
+        $this->flushRewriteRules();
+    }
+
+    /**
+     * Flush rewrite rules on activation and deactivation.
+     *
+     * @return void
+     */
+    private function flushRewriteRules(): void {
+        register_activation_hook(__FILE__, function() {
+            flush_rewrite_rules();
+        });
+
+        register_deactivation_hook(__FILE__, function() {
+            flush_rewrite_rules();
+        });
     }
 }

@@ -75,8 +75,7 @@ export default class CourseManager {
    * @param e The form submission event.
    */
   private handleFormSubmit(e: Event): void {
-    const buyerName = (document.getElementById('cm_buyer_name') as HTMLInputElement)?.value;
-    if (buyerName && !confirm(`Er du sikker på at du vil melde deg på som ${buyerName}?`)) {
+    if (!confirm(`Er du sikker på at du vil fortsette med påmeldingen?`)) {
       e.preventDefault();
     }
   }
@@ -106,7 +105,7 @@ export default class CourseManager {
         <input type="tel" name="cm_participant_phone[${index}]" id="cm_participant_phone_${index}" placeholder="87654321">
       </div>
       <div class="cm-form-field">
-        <label for="cm_participant_birthdate_${index}">Fødselsdato (blir lagret som dd.mm.åååå)</label>
+        <label for="cm_participant_birthdate_${index}">Fødselsdato</label>
         <input type="date" name="cm_participant_birthdate[${index}]" id="cm_participant_birthdate_${index}">
       </div>
       <button type="button" class="cm-remove-participant" title="Fjern deltaker">X</button>

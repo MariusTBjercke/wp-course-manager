@@ -63,7 +63,13 @@ class AdminSettings {
         register_setting('course_manager_settings', 'course_manager_admin_email', [
             'type' => 'string',
             'sanitize_callback' => 'sanitize_email',
-            'default' => get_option('admin_email') // Default to the admin email
+            'default' => get_option('admin_email')
+        ]);
+
+        register_setting('course_manager_settings', 'course_manager_vipps_api_key', [
+            'type' => 'string',
+            'sanitize_callback' => 'sanitize_text_field',
+            'default' => ''
         ]);
 
         // Add settings fields
@@ -95,6 +101,14 @@ class AdminSettings {
             'course_manager_admin_email',
             'E-postadresse for administratorvarsler',
             [$this, 'renderAdminEmailField'],
+            'course_manager_settings',
+            'course_manager_general_section'
+        );
+
+        add_settings_field(
+            'course_manager_vipps_api_key',
+            'Vipps API-nøkkel',
+            [$this, 'renderVippsApiKeyField'],
             'course_manager_settings',
             'course_manager_general_section'
         );
@@ -234,6 +248,17 @@ class AdminSettings {
         ?>
         <input type="email" name="course_manager_admin_email" value="<?php echo esc_attr($value); ?>" style="width: 300px;" />
         <p class="description">E-postadressen som skal motta varsler om nye påmeldinger. La stå tomt for å deaktivere varsler.</p>
+        <?php
+    }
+
+    /**
+     * Render the Vipps API key field.
+     */
+    public function renderVippsApiKeyField(): void {
+        $value = get_option('course_manager_vipps_api_key', '');
+        ?>
+        <input type="text" name="course_manager_vipps_api_key" value="<?php echo esc_attr($value); ?>" style="width: 300px;" />
+        <p class="description">API-nøkkel for Vipps-integrering. La stå tomt for å deaktivere betaling via Vipps.</p>
         <?php
     }
 
