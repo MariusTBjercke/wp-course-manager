@@ -3,6 +3,8 @@
 namespace CourseManager\Frontend;
 
 use DateTime;
+use WC_Order;
+use WC_Order_Item_Product;
 
 /**
  * Shortcode class for managing course-related shortcodes.
@@ -14,50 +16,16 @@ class Shortcode {
     public function register(): void {
         add_shortcode('course_manager', [$this, 'renderCourseList']);
         add_shortcode('course_enrollment_form', [$this, 'renderEnrollmentForm']);
-        add_shortcode('course_payment_form', [$this, 'renderPaymentForm']);
 
         add_filter('wp_mail_from', function ($email) {
             return get_option('admin_email') ?: 'no-reply@' . wp_parse_url(get_site_url(), PHP_URL_HOST);
         });
 
-        // Add rewrite rule for payment page
-        $this->addPaymentRewriteRule();
+        // Listen to WooCommerce order completed (for online payments such as credit card and Vipps)
+        add_action('woocommerce_order_status_completed', [$this, 'handleWooCommerceOrderCompleted']);
 
-        add_filter('query_vars', [$this, 'addPaymentQueryVar']);
-        add_action('template_redirect', [$this, 'handlePaymentPage']);
-    }
-
-    /**
-     * Add rewrite rule for payment page.
-     */
-    public function addPaymentRewriteRule(): void {
-        add_rewrite_rule(
-            'course-payment/([^/]+)/?$',
-            'index.php?course_payment_id=$matches[1]',
-            'top'
-        );
-    }
-
-    /**
-     * Add query var for payment page.
-     *
-     * @param array $vars Existing query vars.
-     * @return array Updated query vars.
-     */
-    public function addPaymentQueryVar(array $vars): array {
-        $vars[] = 'course_payment_id';
-        return $vars;
-    }
-
-    /**
-     * Handle payment page template redirect.
-     */
-    public function handlePaymentPage(): void {
-        $paymentId = get_query_var('course_payment_id');
-        if ($paymentId) {
-            echo $this->renderPaymentForm(['payment_id' => $paymentId]);
-            exit;
-        }
+        // Redirect after order completion to the course page with a success message
+        add_filter('woocommerce_get_return_url', [$this, 'customizeReturnUrl'], 10, 2);
     }
 
     /**
@@ -223,13 +191,16 @@ class Shortcode {
             return '';
         }
 
+        if (!class_exists('WooCommerce')) {
+            return '<p>' . __('Denne funksjonen krever WooCommerce for betalinger.', 'course-manager') . '</p>';
+        }
+
         $courseId = get_the_ID();
         $submissionMessage = '';
-        $pricePerParticipant = (int) get_post_meta($courseId, '_course_price', true); // Get price per participant
+        $pricePerParticipant = (int) get_post_meta($courseId, '_course_price', true);
 
-        // Display payment success message if redirected back
         if (isset($_GET['payment_success']) && $_GET['payment_success'] === '1') {
-            $submissionMessage = '<p class="success">Påmeldingen er fullført! En bekreftelse er sendt til deg på e-post.</p>';
+            $submissionMessage = '<p class="success">Påmeldingen er fullført! Du vil motta en bekreftelse på e-post.</p>';
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cm_enrollment_nonce'])) {
@@ -245,21 +216,15 @@ class Shortcode {
                 $buyer_comments = sanitize_textarea_field($_POST['cm_buyer_comments'] ?? '');
                 $buyer_company = sanitize_text_field($_POST['cm_buyer_company'] ?? '');
 
-                // Get participants (array of participant data)
                 $participants = [];
                 $participant_count = isset($_POST['cm_participant_count']) ? (int) $_POST['cm_participant_count'] : 0;
 
-                // Process participants
                 for ($i = 0; $i < $participant_count; $i++) {
                     if (isset($_POST['cm_participant_name'][$i], $_POST['cm_participant_email'][$i])) {
                         $participant_birthdate = sanitize_text_field($_POST['cm_participant_birthdate'][$i] ?? '');
                         if (!empty($participant_birthdate)) {
                             $date = DateTime::createFromFormat('Y-m-d', $participant_birthdate);
-                            if ($date) {
-                                $participant_birthdate = $date->format('d.m.Y');
-                            } else {
-                                $participant_birthdate = '';
-                            }
+                            $participant_birthdate = $date ? $date->format('d.m.Y') : '';
                         }
 
                         $participants[] = [
@@ -271,13 +236,11 @@ class Shortcode {
                     }
                 }
 
-                // Validate required fields
                 if (empty($buyer_name) || empty($buyer_email) || !is_email($buyer_email)) {
                     $submissionMessage = '<p class="error">Vennligst fyll inn alle påkrevde felt for bestiller med gyldig data.</p>';
                 } elseif (empty($participants)) {
                     $submissionMessage = '<p class="error">Minst én deltaker må legges til.</p>';
                 } else {
-                    // Validate participants
                     $validParticipants = true;
                     foreach ($participants as $participant) {
                         if (empty($participant['name']) || empty($participant['email']) || !is_email($participant['email'])) {
@@ -288,14 +251,11 @@ class Shortcode {
 
                     if (!$validParticipants) {
                         $submissionMessage = '<p class="error">Vennligst fyll inn alle påkrevde felt for deltakere med gyldig data.</p>';
-                    }
-                    // Validate postal code (4 digits)
-                    elseif (!empty($buyer_postal_code) && !preg_match('/^\d{4}$/', $buyer_postal_code)) {
+                    } elseif (!empty($buyer_postal_code) && !preg_match('/^\d{4}$/', $buyer_postal_code)) {
                         $submissionMessage = '<p class="error">Postnummer må være 4 sifre (f.eks. 1234).</p>';
                     } else {
                         $totalPrice = $pricePerParticipant * count($participants);
 
-                        // Prepare enrollment data
                         $enrollmentData = [
                             'course_id' => $courseId,
                             'buyer_name' => $buyer_name,
@@ -310,7 +270,6 @@ class Shortcode {
                             'total_price' => $totalPrice,
                         ];
 
-                        // If total price is 0, complete the enrollment directly
                         if ($totalPrice === 0) {
                             $enrollmentId = $this->completeEnrollment($enrollmentData);
                             if ($enrollmentId) {
@@ -319,10 +278,25 @@ class Shortcode {
                                 $submissionMessage = '<p class="error">Det oppstod en feil ved registrering av påmeldingen. Vennligst prøv igjen.</p>';
                             }
                         } else {
-                            // Store enrollment data temporarily and redirect to payment page
-                            $paymentId = wp_generate_uuid4();
-                            set_transient('course_payment_' . $paymentId, $enrollmentData, HOUR_IN_SECONDS); // Store for 1 hour
-                            wp_redirect(home_url('/course-payment/' . $paymentId));
+                            $order = wc_create_order();
+                            $item = new WC_Order_Item_Product();
+                            $item->set_name(get_the_title($courseId));
+                            $item->set_quantity(count($participants));
+                            $item->set_subtotal($totalPrice);
+                            $item->set_total($totalPrice);
+                            $order->add_item($item);
+
+                            $order->set_billing_first_name($buyer_name);
+                            $order->set_billing_email($buyer_email);
+                            $order->set_billing_phone($buyer_phone);
+                            $order->set_billing_address_1($buyer_street_address);
+                            $order->set_billing_postcode($buyer_postal_code);
+                            $order->set_billing_city($buyer_city);
+                            $order->update_meta_data('_cm_enrollment_data', $enrollmentData);
+                            $order->calculate_totals();
+                            $order->save();
+
+                            wp_redirect($order->get_checkout_payment_url());
                             exit;
                         }
                     }
@@ -449,7 +423,6 @@ class Shortcode {
             update_post_meta($enrollmentId, 'cm_participants', $participants);
             update_post_meta($enrollmentId, 'cm_total_price', $totalPrice);
 
-            // Prepare variables for email template
             $templateVars = [
                 'buyer_name' => $buyer_name,
                 'course_title' => get_the_title($courseId),
@@ -467,7 +440,6 @@ class Shortcode {
                 'buyer_comments' => $buyer_comments,
             ];
 
-            // Send confirmation email to user
             $subject = 'Bekreftelse på kurspåmelding';
             $custom_message = get_post_meta($courseId, '_course_custom_email_message', true);
             $default_message = get_option(
@@ -476,12 +448,9 @@ class Shortcode {
             );
             $message = !empty($custom_message) ? $custom_message : $default_message;
 
-            // Parse the email template
             $message = $this->parseEmailTemplate($message, $templateVars);
-
             wp_mail($buyer_email, $subject, $message);
 
-            // Send notification email to admin
             $adminEmail = get_option('course_manager_admin_email');
             if (!empty($adminEmail) && is_email($adminEmail)) {
                 $adminSubject = 'Ny påmelding til [course_title]';
@@ -490,10 +459,8 @@ class Shortcode {
                     "Hei,\n\nEn ny påmelding har blitt registrert for kurset \"[course_title]\".\n\nBestillerinformasjon:\n- Navn: [buyer_name]\n- E-post: [buyer_email]\n- Telefonnummer: [buyer_phone]\n- Firma: [buyer_company]\n- Gateadresse: [buyer_street_address]\n- Postnummer: [buyer_postal_code]\n- Poststed: [buyer_city]\n- Kommentarer/spørsmål: [buyer_comments]\n\nDeltakere ([participant_count]):\n[participants]\n\nTotal pris: [total_price] NOK\n\nBeste hilsener,\nKursadministrator-systemet"
                 );
 
-                // Parse both the admin email subject and message
                 $adminSubject = $this->parseEmailTemplate($adminSubject, $templateVars);
                 $adminMessage = $this->parseEmailTemplate($adminMessage, $templateVars);
-
                 wp_mail($adminEmail, $adminSubject, $adminMessage);
             } else {
                 error_log('Admin email not sent: Invalid or empty admin email (' . $adminEmail . ')');
@@ -521,61 +488,38 @@ class Shortcode {
     }
 
     /**
-     * Render the payment form shortcode.
+     * Handle WooCommerce order completed.
      *
-     * @param array $atts Shortcode attributes.
-     * @return string HTML output for the payment form.
+     * @param int $order_id Order ID.
+     * @return void
      */
-    public function renderPaymentForm(array $atts = []): string {
-        $atts = shortcode_atts(['payment_id' => ''], $atts);
-        $paymentId = sanitize_text_field($atts['payment_id']);
-        $enrollmentData = get_transient('course_payment_' . $paymentId);
+    public function handleWooCommerceOrderCompleted(int $order_id): void {
+        $order = wc_get_order($order_id);
+        $enrollmentData = $order->get_meta('_cm_enrollment_data', true);
 
-        if (!$enrollmentData) {
-            return '<p class="error">Ugyldig eller utløpt påmelding. Vennligst prøv igjen.</p>';
-        }
-
-        $totalPrice = $enrollmentData['total_price'];
-        $courseTitle = get_the_title($enrollmentData['course_id']);
-        $participantCount = count($enrollmentData['participants']);
-
-        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cm_payment_nonce']) && wp_verify_nonce($_POST['cm_payment_nonce'], 'cm_payment_action')) {
-            $vippsApiKey = get_option('course_manager_vipps_api_key');
-            //            if (!empty($vippsApiKey)) {
-            // Simulate initiating a payment with Vipps
-            // In a real implementation, you would:
-            // 1. Make a POST request to Vipps API to create a payment
-            // 2. Redirect the user to the payment URL returned by Vipps
-            // 3. Handle the callback to confirm payment
-            //            }
-
-            // For now, simulate a successful payment
+        if ($enrollmentData && is_array($enrollmentData)) {
             $enrollmentId = $this->completeEnrollment($enrollmentData);
             if ($enrollmentId) {
-                // Delete the transient after successful enrollment
-                delete_transient('course_payment_' . $paymentId);
-                // Redirect back to the course page with a success message
-                wp_redirect(add_query_arg('payment_success', '1', get_permalink($enrollmentData['course_id'])));
-                exit;
+                $order->add_order_note(__('Påmelding fullført via Course Manager (ID: ' . $enrollmentId . ')', 'course-manager'));
+            } else {
+                $order->add_order_note(__('Feil ved fullføring av påmelding i Course Manager.', 'course-manager'));
             }
-
-            return '<p class="error">Det oppstod en feil ved fullføring av påmeldingen. Vennligst prøv igjen.</p>';
         }
+    }
 
-        ob_start();
-        ?>
-        <div class="cm-payment-form">
-            <h2>Betaling for påmelding til <?php echo esc_html($courseTitle); ?></h2>
-            <p>Du er i ferd med å betale for <?php echo esc_html($participantCount); ?> deltakere.</p>
-            <p><strong>Total pris:</strong> <?php echo esc_html($totalPrice); ?> NOK</p>
-            <p><em>Merk: Betaling simuleres midlertidig – klikk "Betal" for å fullføre påmeldingen.</em></p>
-
-            <form method="post" action="">
-                <?php wp_nonce_field('cm_payment_action', 'cm_payment_nonce'); ?>
-                <button type="submit" class="cm-pay-button">Betal</button>
-            </form>
-        </div>
-        <?php
-        return ob_get_clean();
+    /**
+     * Customize the return URL after order completion.
+     * Falling back to the default return URL in case of errors.
+     *
+     * @param string $return_url Default return URL.
+     * @param WC_Order $order The WooCommerce order object.
+     * @return string Modified return URL.
+     */
+    public function customizeReturnUrl(string $return_url, $order): string {
+        $enrollmentData = $order->get_meta('_cm_enrollment_data', true);
+        if ($enrollmentData && isset($enrollmentData['course_id'])) {
+            return add_query_arg('payment_success', '1', get_permalink($enrollmentData['course_id']));
+        }
+        return $return_url;
     }
 }
