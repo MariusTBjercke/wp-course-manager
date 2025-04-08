@@ -64,13 +64,12 @@ class AdminSettings {
             'default' => "Hei,\n\nEn ny påmelding har blitt registrert for kurset \"[course_title]\".\n\nBestillerinformasjon:\n- Navn: [buyer_name]\n- E-post: [buyer_email]\n- Telefonnummer: [buyer_phone]\n- Firma: [buyer_company]\n- Gateadresse: [buyer_street_address]\n- Postnummer: [buyer_postal_code]\n- Poststed: [buyer_city]\n- Kommentarer/spørsmål: [buyer_comments]\n\nDeltakere ([participant_count]):\n[participants]\n\nTotal pris: [total_price] NOK\n\nBeste hilsener,\nKursadministrator-systemet"
         ]);
 
-        register_setting('course_manager_settings', 'course_manager_vipps_api_key', [
-            'type' => 'string',
-            'sanitize_callback' => 'sanitize_text_field',
-            'default' => ''
+        register_setting('course_manager_settings', 'course_manager_enable_emails', [
+            'type' => 'boolean',
+            'sanitize_callback' => 'rest_sanitize_boolean',
+            'default' => true
         ]);
 
-        // Define tabs and their sections
         $tabs = [
             'general' => [
                 'title' => 'Generelt',
@@ -81,11 +80,6 @@ class AdminSettings {
                 'title' => 'E-post',
                 'section_id' => 'course_manager_email_section',
                 'callback' => [$this, 'renderEmailSection']
-            ],
-            'payment' => [
-                'title' => 'Betaling',
-                'section_id' => 'course_manager_payment_section',
-                'callback' => [$this, 'renderPaymentSection']
             ]
         ];
 
@@ -116,7 +110,14 @@ class AdminSettings {
             'course_manager_general_section'
         );
 
-        // Email tab fields
+        add_settings_field(
+            'course_manager_enable_emails',
+            'Aktiver e-poster',
+            [$this, 'renderEnableEmailsField'],
+            'course_manager_settings_email',
+            'course_manager_email_section'
+        );
+
         add_settings_field(
             'course_manager_default_email_message',
             'Standard e-postbekreftelse til kunde',
@@ -139,15 +140,6 @@ class AdminSettings {
             [$this, 'renderAdminEmailMessageField'],
             'course_manager_settings_email',
             'course_manager_email_section'
-        );
-
-        // Payment tab fields
-        add_settings_field(
-            'course_manager_vipps_api_key',
-            'Vipps API-nøkkel',
-            [$this, 'renderVippsApiKeyField'],
-            'course_manager_settings_payment',
-            'course_manager_payment_section'
         );
     }
 
@@ -179,8 +171,7 @@ class AdminSettings {
     public function renderSettingsPage(): void {
         $tabs = [
             'general' => 'Generelt',
-            'email' => 'E-post',
-            'payment' => 'Betaling'
+            'email' => 'E-post'
         ];
         $active_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'general';
         if (!array_key_exists($active_tab, $tabs)) {
@@ -189,6 +180,12 @@ class AdminSettings {
         ?>
         <div class="wrap">
             <h1>Kursinnstillinger</h1>
+
+            <?php
+            if (!class_exists('WooCommerce')) {
+                echo '<div class="notice notice-error is-dismissible"><p>' . __('WooCommerce er ikke aktivert. Course Manager krever WooCommerce for å håndtere betalinger. Installer og aktiver WooCommerce for full funksjonalitet.', 'course-manager') . '</p></div>';
+            }
+            ?>
 
             <h2 class="nav-tab-wrapper">
                 <?php foreach ($tabs as $tab_id => $tab_name): ?>
@@ -222,13 +219,6 @@ class AdminSettings {
      */
     public function renderEmailSection(): void {
         echo '<p>Innstillinger for e-posthåndtering i Course Manager.</p>';
-    }
-
-    /**
-     * Render the payment section.
-     */
-    public function renderPaymentSection(): void {
-        echo '<p>Innstillinger for betalingshåndtering i Course Manager.</p>';
     }
 
     /**
@@ -295,6 +285,17 @@ class AdminSettings {
     }
 
     /**
+     * Render the enable emails field.
+     */
+    public function renderEnableEmailsField(): void {
+        $value = get_option('course_manager_enable_emails', true);
+        ?>
+        <input type="checkbox" name="course_manager_enable_emails" value="1" <?php checked($value, true); ?> />
+        <p class="description">Aktiver eller deaktiver sending av e-poster fra Course Manager (bekreftelser til kunder og varsler til administrator).</p>
+        <?php
+    }
+
+    /**
      * Render the default email message field for customers.
      */
     public function renderDefaultEmailMessageField(): void {
@@ -345,17 +346,6 @@ class AdminSettings {
             - [participants]: Liste over deltakernavn (en per linje, med "- " foran)<br>
             Eksempel: "Ny påmelding til [course_title] fra [buyer_name]."
         </p>
-        <?php
-    }
-
-    /**
-     * Render the Vipps API key field.
-     */
-    public function renderVippsApiKeyField(): void {
-        $value = get_option('course_manager_vipps_api_key', '');
-        ?>
-        <input type="text" name="course_manager_vipps_api_key" value="<?php echo esc_attr($value); ?>" style="width: 300px;" />
-        <p class="description">API-nøkkel for Vipps-integrering. La stå tomt for å deaktivere betaling via Vipps.</p>
         <?php
     }
 

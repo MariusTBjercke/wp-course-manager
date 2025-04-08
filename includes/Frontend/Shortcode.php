@@ -423,47 +423,50 @@ class Shortcode {
             update_post_meta($enrollmentId, 'cm_participants', $participants);
             update_post_meta($enrollmentId, 'cm_total_price', $totalPrice);
 
-            $templateVars = [
-                'buyer_name' => $buyer_name,
-                'course_title' => get_the_title($courseId),
-                'participant_count' => count($participants),
-                'total_price' => $totalPrice,
-                'participants' => implode("\n", array_map(function($participant) {
-                    return "- " . $participant['name'];
-                }, $participants)),
-                'buyer_email' => $buyer_email,
-                'buyer_phone' => $buyer_phone,
-                'buyer_company' => $buyer_company,
-                'buyer_street_address' => $buyer_street_address,
-                'buyer_postal_code' => $buyer_postal_code,
-                'buyer_city' => $buyer_city,
-                'buyer_comments' => $buyer_comments,
-            ];
+            $enable_emails = get_option('course_manager_enable_emails', true);
+            if ($enable_emails) {
+                $templateVars = [
+                    'buyer_name' => $buyer_name,
+                    'course_title' => get_the_title($courseId),
+                    'participant_count' => count($participants),
+                    'total_price' => $totalPrice,
+                    'participants' => implode("\n", array_map(function ($participant) {
+                        return "- " . $participant['name'];
+                    }, $participants)),
+                    'buyer_email' => $buyer_email,
+                    'buyer_phone' => $buyer_phone,
+                    'buyer_company' => $buyer_company,
+                    'buyer_street_address' => $buyer_street_address,
+                    'buyer_postal_code' => $buyer_postal_code,
+                    'buyer_city' => $buyer_city,
+                    'buyer_comments' => $buyer_comments,
+                ];
 
-            $subject = 'Bekreftelse på kurspåmelding';
-            $custom_message = get_post_meta($courseId, '_course_custom_email_message', true);
-            $default_message = get_option(
-                'course_manager_default_email_message',
-                "Hei [buyer_name],\n\nTakk for at du meldte deg på [course_title]! Vi gleder oss til å se deg.\n\nAntall deltakere: [participant_count]\nTotal pris: [total_price] NOK\n\nDeltakere:\n[participants]\n\nBeste hilsener,\nKursadministrator-teamet"
-            );
-            $message = !empty($custom_message) ? $custom_message : $default_message;
-
-            $message = $this->parseEmailTemplate($message, $templateVars);
-            wp_mail($buyer_email, $subject, $message);
-
-            $adminEmail = get_option('course_manager_admin_email');
-            if (!empty($adminEmail) && is_email($adminEmail)) {
-                $adminSubject = 'Ny påmelding til [course_title]';
-                $adminMessage = get_option(
-                    'course_manager_admin_email_message',
-                    "Hei,\n\nEn ny påmelding har blitt registrert for kurset \"[course_title]\".\n\nBestillerinformasjon:\n- Navn: [buyer_name]\n- E-post: [buyer_email]\n- Telefonnummer: [buyer_phone]\n- Firma: [buyer_company]\n- Gateadresse: [buyer_street_address]\n- Postnummer: [buyer_postal_code]\n- Poststed: [buyer_city]\n- Kommentarer/spørsmål: [buyer_comments]\n\nDeltakere ([participant_count]):\n[participants]\n\nTotal pris: [total_price] NOK\n\nBeste hilsener,\nKursadministrator-systemet"
+                $subject = 'Bekreftelse på kurspåmelding';
+                $custom_message = get_post_meta($courseId, '_course_custom_email_message', true);
+                $default_message = get_option(
+                    'course_manager_default_email_message',
+                    "Hei [buyer_name],\n\nTakk for at du meldte deg på [course_title]! Vi gleder oss til å se deg.\n\nAntall deltakere: [participant_count]\nTotal pris: [total_price] NOK\n\nDeltakere:\n[participants]\n\nBeste hilsener,\nKursadministrator-teamet"
                 );
+                $message = !empty($custom_message) ? $custom_message : $default_message;
 
-                $adminSubject = $this->parseEmailTemplate($adminSubject, $templateVars);
-                $adminMessage = $this->parseEmailTemplate($adminMessage, $templateVars);
-                wp_mail($adminEmail, $adminSubject, $adminMessage);
-            } else {
-                error_log('Admin email not sent: Invalid or empty admin email (' . $adminEmail . ')');
+                $message = $this->parseEmailTemplate($message, $templateVars);
+                wp_mail($buyer_email, $subject, $message);
+
+                $adminEmail = get_option('course_manager_admin_email');
+                if (!empty($adminEmail) && is_email($adminEmail)) {
+                    $adminSubject = 'Ny påmelding til [course_title]';
+                    $adminMessage = get_option(
+                        'course_manager_admin_email_message',
+                        "Hei,\n\nEn ny påmelding har blitt registrert for kurset \"[course_title]\".\n\nBestillerinformasjon:\n- Navn: [buyer_name]\n- E-post: [buyer_email]\n- Telefonnummer: [buyer_phone]\n- Firma: [buyer_company]\n- Gateadresse: [buyer_street_address]\n- Postnummer: [buyer_postal_code]\n- Poststed: [buyer_city]\n- Kommentarer/spørsmål: [buyer_comments]\n\nDeltakere ([participant_count]):\n[participants]\n\nTotal pris: [total_price] NOK\n\nBeste hilsener,\nKursadministrator-systemet"
+                    );
+
+                    $adminSubject = $this->parseEmailTemplate($adminSubject, $templateVars);
+                    $adminMessage = $this->parseEmailTemplate($adminMessage, $templateVars);
+                    wp_mail($adminEmail, $adminSubject, $adminMessage);
+                } else {
+                    error_log('Admin email not sent: Invalid or empty admin email (' . $adminEmail . ')');
+                }
             }
 
             return $enrollmentId;
