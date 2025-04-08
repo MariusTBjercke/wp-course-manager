@@ -1,6 +1,5 @@
 const path = require('path');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
-const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 const RemoveEmptyScriptsPlugin = require('webpack-remove-empty-scripts');
 
 // Determine whether we are targeting development or production environment.
@@ -36,9 +35,6 @@ module.exports = [
         },
       ],
     },
-    plugins: [
-      new CleanWebpackPlugin(),
-    ],
     devtool: 'source-map',
   },
 
