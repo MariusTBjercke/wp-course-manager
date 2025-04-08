@@ -1,12 +1,14 @@
 interface FilterElements {
   filterButton: HTMLButtonElement | null;
-  filterSelects: NodeListOf<HTMLSelectElement> | null;
+  resetButton: HTMLButtonElement | null;
+  filterToggles: NodeListOf<HTMLButtonElement> | null;
 }
 
 export default class CourseManager {
   private elements: FilterElements = {
     filterButton: null,
-    filterSelects: null
+    resetButton: null,
+    filterToggles: null
   };
 
   private participantCount: number = 0;
@@ -23,8 +25,10 @@ export default class CourseManager {
       this.findElements();
       this.bindEvents();
 
-      // Automatically add the first participant on page load
-      this.addParticipant();
+      // Automatically add the first participant on page load (for enrollment form)
+      if (document.querySelector('.cm-enrollment-form')) {
+        this.addParticipant();
+      }
     });
   }
 
@@ -33,18 +37,91 @@ export default class CourseManager {
    */
   private findElements(): void {
     this.elements.filterButton = document.querySelector('.cm-filter-button');
-    this.elements.filterSelects = document.querySelectorAll('.cm-filter-group select[id]');
+    this.elements.resetButton = document.querySelector('.cm-reset-button');
+    this.elements.filterToggles = document.querySelectorAll('.cm-filter-toggle');
+  }
+
+  /**
+   * Update the toggle button text based on the number of selected checkboxes.
+   *
+   * @param toggle The toggle button element.
+   */
+  private updateToggleText(toggle: HTMLButtonElement): void {
+    const optionsContainer = toggle.nextElementSibling as HTMLElement;
+    const checkboxes = optionsContainer.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+    const checkedCount = Array.from(checkboxes).filter(checkbox => checkbox.checked).length;
+    const taxonomyName = toggle.textContent?.split(' (')[0] || 'Filter'; // Extract the taxonomy name
+    toggle.textContent = `${taxonomyName} (${checkedCount === 0 ? 'Alle' : checkedCount} valgt)`;
   }
 
   /**
    * Bind events to filter elements.
    */
   private bindEvents(): void {
-    const {filterSelects} = this.elements;
+    const { filterButton, resetButton, filterToggles } = this.elements;
 
-    if (filterSelects) {
-      filterSelects.forEach(select => {
-        select.addEventListener('change', () => this.handleAutoSubmit());
+    // Toggle dropdown visibility
+    if (filterToggles) {
+      filterToggles.forEach(toggle => {
+        toggle.addEventListener('click', () => {
+          const options = toggle.nextElementSibling as HTMLElement;
+          const isVisible = options.style.display === 'block';
+          // Close all other dropdowns
+          document.querySelectorAll('.cm-filter-options').forEach(opt => {
+            (opt as HTMLElement).style.display = 'none';
+          });
+          // Toggle the current dropdown
+          options.style.display = isVisible ? 'none' : 'block';
+        });
+
+        // Initialize toggle text on page load
+        this.updateToggleText(toggle);
+      });
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.cm-filter-dropdown')) {
+        document.querySelectorAll('.cm-filter-options').forEach(opt => {
+          (opt as HTMLElement).style.display = 'none';
+        });
+      }
+    });
+
+    // Update toggle text on checkbox change
+    const checkboxes = document.querySelectorAll('.cm-filter-option input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+    if (checkboxes) {
+      checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+          const toggle = checkbox.closest('.cm-filter-dropdown')?.querySelector('.cm-filter-toggle') as HTMLButtonElement;
+          if (toggle) {
+            this.updateToggleText(toggle);
+          }
+        });
+      });
+    }
+
+    // Reset button functionality
+    if (resetButton) {
+      resetButton.addEventListener('click', () => {
+        const form = document.querySelector('.cm-filters form') as HTMLFormElement;
+        if (form) {
+          // Clear search input
+          const searchInput = form.querySelector('#course_search') as HTMLInputElement;
+          if (searchInput) searchInput.value = '';
+          // Uncheck all checkboxes
+          const checkboxes = form.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+          checkboxes.forEach(checkbox => {
+            checkbox.checked = false;
+            // Update toggle text after resetting
+            const toggle = checkbox.closest('.cm-filter-dropdown')?.querySelector('.cm-filter-toggle') as HTMLButtonElement;
+            if (toggle) {
+              this.updateToggleText(toggle);
+            }
+          });
+          form.submit();
+        }
       });
     }
 
@@ -56,16 +133,6 @@ export default class CourseManager {
     const addParticipantButton = document.getElementById('cm-add-participant') as HTMLButtonElement;
     if (addParticipantButton) {
       addParticipantButton.addEventListener('click', () => this.addParticipant());
-    }
-  }
-
-  /**
-   * Handle auto-submit of the form when filters change.
-   */
-  private handleAutoSubmit(): void {
-    const form = document.querySelector('.cm-filters form') as HTMLFormElement;
-    if (form) {
-      form.submit();
     }
   }
 
