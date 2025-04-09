@@ -157,6 +157,7 @@ class Shortcode {
                         }
                         $startDate = get_post_meta($course->ID, 'startdato', true);
                         $startDate = $startDate ? DateTime::createFromFormat('Y-m-d', $startDate)->format('d.m.Y') : '';
+                        $pricePerParticipant = get_post_meta($course->ID, '_course_price', true);
                         $more_info_page_id = get_post_meta($course->ID, '_course_more_info_page', true);
                         $more_info_url = $more_info_page_id ? get_permalink($more_info_page_id) : '';
                         ?>
@@ -177,6 +178,10 @@ class Shortcode {
                                         <strong><?php echo esc_html($typeName); ?>:</strong> <?php echo esc_html(implode(', ', $terms)); ?>
                                     </span>
                                     <?php endforeach; ?>
+                                    <?php if ($pricePerParticipant): ?>
+                                        <span><strong>Pris per deltaker:</strong>
+                                            <?php echo esc_html($pricePerParticipant); ?> NOK</span>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="cm-course-excerpt">
                                     <?php echo wp_trim_words($course->post_content, 30); ?>

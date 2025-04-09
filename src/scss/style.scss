@@ -31,14 +31,15 @@
 
       label {
         display: block;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.25rem;
+        font-size: 1.2rem;
         font-weight: 600;
         color: #333;
       }
 
       input[type="text"] {
         width: 100%;
-        padding: 0.75rem;
+        padding: 0.5rem;
         border: 1px solid #ddd;
         border-radius: 4px;
         background-color: #fff;
@@ -59,7 +60,7 @@
 
     input[type="date"] {
       width: 100%;
-      padding: 0.75rem;
+      padding: 0.5rem;
       border: 1px solid #ddd;
       border-radius: 4px;
       background-color: #fff;
@@ -85,7 +86,7 @@
 
         .cm-filter-toggle {
           width: 100%;
-          padding: 0.75rem;
+          padding: 0.5rem;
           border: 1px solid #ddd;
           border-radius: 4px;
           background-color: #fff;
@@ -135,7 +136,10 @@
           display: block;
           padding: 0.5rem 1rem;
           cursor: pointer;
-          font-size: 0.9rem;
+
+          label {
+            font-size: 0.9rem;
+          }
 
           &.cm-filter-option-parent {
             font-weight: 600;
@@ -168,7 +172,7 @@
 
     .cm-filter-button,
     .cm-reset-button {
-      padding: 0.75rem 1.5rem;
+      padding: 0.5rem 1.5rem;
       border: none;
       border-radius: 4px;
       cursor: pointer;
@@ -247,11 +251,13 @@
     margin-bottom: 1.5rem;
     color: #666;
     line-height: 1.5;
+    font-size: 1rem;
   }
 
   .cm-course-actions {
     display: flex;
     gap: 1rem;
+    font-size: 1rem;
   }
 
   .cm-course-link,
@@ -448,7 +454,7 @@
   input[type="date"],
   textarea {
     width: 100%;
-    padding: 0.75rem;
+    padding: 0.5rem;
     border: 1px solid #ddd;
     border-radius: 4px;
     box-sizing: border-box;
@@ -475,7 +481,7 @@
   }
 
   button {
-    padding: 0.75rem 2rem;
+    padding: 0.5rem 2rem;
     background-color: #46b450;
     color: #fff;
     border: none;
@@ -547,6 +553,15 @@
           flex: 1;
         }
       }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .cm-course-manager {
+    .cm-course-meta {
+      flex-direction: column;
+      gap: 0.5rem;
     }
   }
 }
