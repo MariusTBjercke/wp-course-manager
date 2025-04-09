@@ -40,6 +40,8 @@ class Shortcode {
         ], $atts);
 
         $searchTerm = isset($_GET['course_search']) ? sanitize_text_field($_GET['course_search']) : '';
+        $startDate = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
+        $endDate = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
         $selectedTaxonomies = [];
         $taxonomies = get_option('course_manager_taxonomies', []);
 
@@ -57,6 +59,23 @@ class Shortcode {
             'posts_per_page' => get_option('course_manager_items_per_page', 10),
             'tax_query' => []
         ];
+
+        // Add start date filter
+        if ($startDate || $endDate) {
+            $meta_query = [
+                'key' => 'startdato',
+                'type' => 'DATE',
+            ];
+            if ($startDate) {
+                $meta_query['compare'] = '>=';
+                $meta_query['value'] = $startDate;
+            }
+            if ($endDate) {
+                $meta_query['compare'] = $startDate ? 'BETWEEN' : '<=';
+                $meta_query['value'] = $startDate ? [$startDate, $endDate] : $endDate;
+            }
+            $args['meta_query'][] = $meta_query;
+        }
 
         // Build tax_query for multiple selections
         foreach ($selectedTaxonomies as $taxonomy => $terms) {
@@ -96,6 +115,14 @@ class Shortcode {
                             <label for="course_search">Søk:</label>
                             <input type="text" id="course_search" name="course_search" placeholder="Søk etter kurs" value="<?php echo esc_attr($searchTerm); ?>"/>
                         </div>
+                        <div class="cm-filter-group">
+                            <label for="start_date">Fra dato:</label>
+                            <input type="date" id="start_date" name="start_date" value="<?php echo esc_attr($startDate); ?>"/>
+                        </div>
+                        <div class="cm-filter-group">
+                            <label for="end_date">Til dato:</label>
+                            <input type="date" id="end_date" name="end_date" value="<?php echo esc_attr($endDate); ?>"/>
+                        </div>
                         <?php foreach ($taxonomies as $slug => $name): ?>
                             <div class="cm-filter-group cm-taxonomy-filter">
                                 <label><?php echo esc_html($name); ?>:</label>
@@ -128,6 +155,8 @@ class Shortcode {
                                 $courseTaxonomyData[$name] = wp_list_pluck($terms, 'name');
                             }
                         }
+                        $startDate = get_post_meta($course->ID, 'startdato', true);
+                        $startDate = $startDate ? DateTime::createFromFormat('Y-m-d', $startDate)->format('d.m.Y') : '';
                         $more_info_page_id = get_post_meta($course->ID, '_course_more_info_page', true);
                         $more_info_url = $more_info_page_id ? get_permalink($more_info_page_id) : '';
                         ?>
@@ -140,9 +169,12 @@ class Shortcode {
                             <div class="cm-course-content">
                                 <h3 class="cm-course-title"><?php echo esc_html($course->post_title); ?></h3>
                                 <div class="cm-course-meta">
+                                    <?php if ($startDate): ?>
+                                        <span><strong>Startdato:</strong> <?php echo esc_html($startDate); ?></span>
+                                    <?php endif; ?>
                                     <?php foreach ($courseTaxonomyData as $typeName => $terms): ?>
                                         <span class="cm-course-taxonomy">
-                                        <strong><?php echo esc_html($typeName); ?>:</strong> <?php echo esc_html(join(', ', $terms)); ?>
+                                        <strong><?php echo esc_html($typeName); ?>:</strong> <?php echo esc_html(implode(', ', $terms)); ?>
                                     </span>
                                     <?php endforeach; ?>
                                 </div>

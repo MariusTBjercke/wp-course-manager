@@ -2,6 +2,7 @@
 
 namespace CourseManager\PostType;
 
+use DateTime;
 use WP_Post;
 
 /**
@@ -89,6 +90,15 @@ class Course {
         );
 
         add_meta_box(
+            'course_start_date',
+            'Startdato',
+            [$this, 'renderStartDateMetaBox'],
+            'course',
+            'normal',
+            'default'
+        );
+
+        add_meta_box(
             'course_price',
             'Pris per deltaker',
             [$this, 'renderPriceMetaBox'],
@@ -128,6 +138,23 @@ class Course {
             - [participants]: Liste over deltakernavn (en per linje, med "- " foran)<br>
             Eksempel: "Hei [buyer_name], takk for at du meldte deg på [course_title]!"
         </p>
+        <?php
+    }
+
+    /**
+     * Render the start date meta box.
+     *
+     * @param WP_Post $post The current post object.
+     */
+    public function renderStartDateMetaBox(WP_Post $post): void {
+        $start_date = get_post_meta($post->ID, 'startdato', true);
+        wp_nonce_field('course_start_date_nonce', 'course_start_date_nonce');
+        ?>
+        <p>
+            <label for="course_start_date">Startdato for kurset:</label><br>
+            <input type="date" name="course_start_date" id="course_start_date" value="<?php echo esc_attr($start_date); ?>">
+        </p>
+        <p class="description">Angi startdatoen for kurset.</p>
         <?php
     }
 
@@ -190,6 +217,20 @@ class Course {
 
         if (isset($_POST['course_custom_email_message'])) {
             update_post_meta($post_id, '_course_custom_email_message', sanitize_textarea_field($_POST['course_custom_email_message']));
+        }
+
+        // Save start date
+        if (!isset($_POST['course_start_date_nonce']) || !wp_verify_nonce($_POST['course_start_date_nonce'], 'course_start_date_nonce')) {
+            return;
+        }
+
+        if (isset($_POST['course_start_date'])) {
+            $start_date = sanitize_text_field($_POST['course_start_date']);
+            if ($start_date && DateTime::createFromFormat('Y-m-d', $start_date) !== false) {
+                update_post_meta($post_id, 'startdato', $start_date);
+            } else {
+                delete_post_meta($post_id, 'startdato');
+            }
         }
 
         // Save price

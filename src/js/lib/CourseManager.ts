@@ -110,11 +110,15 @@ export default class CourseManager {
           // Clear search input
           const searchInput = form.querySelector('#course_search') as HTMLInputElement;
           if (searchInput) searchInput.value = '';
+          // Clear date inputs
+          const startDateInput = form.querySelector('#start_date') as HTMLInputElement;
+          const endDateInput = form.querySelector('#end_date') as HTMLInputElement;
+          if (startDateInput) startDateInput.value = '';
+          if (endDateInput) endDateInput.value = '';
           // Uncheck all checkboxes
           const checkboxes = form.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
           checkboxes.forEach(checkbox => {
             checkbox.checked = false;
-            // Update toggle text after resetting
             const toggle = checkbox.closest('.cm-filter-dropdown')?.querySelector('.cm-filter-toggle') as HTMLButtonElement;
             if (toggle) {
               this.updateToggleText(toggle);

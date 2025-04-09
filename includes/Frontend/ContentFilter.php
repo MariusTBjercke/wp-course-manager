@@ -2,6 +2,8 @@
 
 namespace CourseManager\Frontend;
 
+use DateTime;
+
 /**
  * Content filter class for adding course metadata and enrollment form to content.
  */
@@ -25,14 +27,12 @@ class ContentFilter {
         }
 
         // Add course metadata (e.g., location, start date, price)
-        $location = get_post_meta(get_the_ID(), 'sted', true);
         $startDate = get_post_meta(get_the_ID(), 'startdato', true);
+        $startDate = $startDate ? DateTime::createFromFormat('Y-m-d', $startDate)->format('d.m.Y') : '';
+
         $price = get_post_meta(get_the_ID(), '_course_price', true);
 
         $metaHtml = '<div class="cm-course-meta-details">';
-        if ($location) {
-            $metaHtml .= '<p><strong>Sted:</strong> ' . esc_html($location) . '</p>';
-        }
         if ($startDate) {
             $metaHtml .= '<p><strong>Startdato:</strong> ' . esc_html($startDate) . '</p>';
         }
