@@ -5,6 +5,7 @@ namespace CourseManager\Frontend;
 use DateTime;
 use WC_Order;
 use WC_Order_Item_Product;
+use WP_Query;
 
 /**
  * Shortcode class for managing course-related shortcodes.
@@ -48,15 +49,19 @@ class Shortcode {
         // Handle multiple selections for each taxonomy
         foreach ($taxonomies as $slug => $name) {
             $selectedTaxonomies[$slug] = isset($_GET[$slug]) ? (array)$_GET[$slug] : [];
-            // Sanitize each value in the array
             $selectedTaxonomies[$slug] = array_map('sanitize_text_field', $selectedTaxonomies[$slug]);
         }
+
+        // Get current page from URL (default to 1 if not set)
+        $paged = (get_query_var('paged')) ? get_query_var('paged') : (isset($_GET['paged']) ? absint($_GET['paged']) : 1);
+        $posts_per_page = get_option('course_manager_items_per_page', 10);
 
         $args = [
             'post_type' => 'course',
             'post_status' => 'publish',
             's' => $searchTerm,
-            'posts_per_page' => get_option('course_manager_items_per_page', 10),
+            'posts_per_page' => $posts_per_page,
+            'paged' => $paged,
             'tax_query' => []
         ];
 
@@ -79,12 +84,12 @@ class Shortcode {
 
         // Build tax_query for multiple selections
         foreach ($selectedTaxonomies as $taxonomy => $terms) {
-            if (!empty($terms) && !in_array('', $terms)) { // Ignore empty selections
+            if (!empty($terms) && !in_array('', $terms)) {
                 $args['tax_query'][] = [
                     'taxonomy' => $taxonomy,
                     'field' => 'slug',
                     'terms' => $terms,
-                    'operator' => 'IN', // Use 'IN' to match any of the selected terms
+                    'operator' => 'IN',
                 ];
             }
         }
@@ -93,7 +98,10 @@ class Shortcode {
             $args['tax_query']['relation'] = 'AND';
         }
 
-        $courses = get_posts($args);
+        $course_query = new WP_Query($args);
+        $courses = $course_query->posts;
+        $total_pages = $course_query->max_num_pages;
+
         $taxonomyTerms = [];
         foreach ($taxonomies as $slug => $name) {
             $terms = get_terms(['taxonomy' => $slug, 'hide_empty' => false]);
@@ -108,66 +116,45 @@ class Shortcode {
         ob_start();
         ?>
         <div class="cm-course-manager">
-            <?php
-            if ($attributes['show_filters'] === 'yes'): ?>
+            <?php if ($attributes['show_filters'] === 'yes'): ?>
                 <div class="cm-filters">
-                    <form method="get" action="<?php
-                    echo esc_url(get_permalink()); ?>">
+                    <form method="get" action="<?php echo esc_url(get_permalink()); ?>">
                         <div class="cm-filter-group cm-search-group">
                             <label for="course_search">Søk:</label>
-                            <input type="text" id="course_search" name="course_search" placeholder="Søk etter kurs"
-                                   value="<?php
-                                   echo esc_attr($searchTerm); ?>"/>
+                            <input type="text" id="course_search" name="course_search" placeholder="Søk etter kurs" value="<?php echo esc_attr($searchTerm); ?>"/>
                         </div>
                         <div class="cm-filter-group">
                             <label for="start_date">Fra dato:</label>
-                            <input type="date" id="start_date" name="start_date" value="<?php
-                            echo esc_attr($startDate); ?>"/>
+                            <input type="date" id="start_date" name="start_date" value="<?php echo esc_attr($startDate); ?>"/>
                         </div>
                         <div class="cm-filter-group">
                             <label for="end_date">Til dato:</label>
-                            <input type="date" id="end_date" name="end_date" value="<?php
-                            echo esc_attr($endDate); ?>"/>
+                            <input type="date" id="end_date" name="end_date" value="<?php echo esc_attr($endDate); ?>"/>
                         </div>
-                        <?php
-                        foreach ($taxonomies as $slug => $name): ?>
+                        <?php foreach ($taxonomies as $slug => $name): ?>
                             <div class="cm-filter-group cm-taxonomy-filter">
-                                <label><?php
-                                    echo esc_html($name); ?>:</label>
+                                <label><?php echo esc_html($name); ?>:</label>
                                 <div class="cm-filter-dropdown">
-                                    <button type="button" class="cm-filter-toggle"><?php
-                                        echo esc_html($name); ?> (<?php
-                                        echo count(array_filter($selectedTaxonomies[$slug])) ?: 'Alle'; ?> valgt)
-                                    </button>
+                                    <button type="button" class="cm-filter-toggle"><?php echo esc_html($name); ?> (<?php echo count(array_filter($selectedTaxonomies[$slug])) ?: 'Alle'; ?> valgt)</button>
                                     <div class="cm-filter-options">
-                                        <?php
-                                        $this->renderTaxonomyTerms(
-                                            $taxonomyTerms[$slug],
-                                            $slug,
-                                            $selectedTaxonomies[$slug]
-                                        ); ?>
+                                        <?php $this->renderTaxonomyTerms($taxonomyTerms[$slug], $slug, $selectedTaxonomies[$slug]); ?>
                                     </div>
                                 </div>
                             </div>
-                        <?php
-                        endforeach; ?>
+                        <?php endforeach; ?>
                         <button type="submit" class="cm-filter-button">Filtrer</button>
                         <button type="button" class="cm-reset-button">Nullstill</button>
                     </form>
                 </div>
-            <?php
-            endif; ?>
+            <?php endif; ?>
 
-            <?php
-            if (empty($courses)): ?>
+            <?php if (empty($courses)): ?>
                 <div class="cm-no-courses">
                     <p>Ingen kurs funnet. Vennligst prøv andre filtre.</p>
                 </div>
-            <?php
-            else: ?>
+            <?php else: ?>
                 <div class="cm-course-list">
-                    <?php
-                    foreach ($courses as $course): ?>
+                    <?php foreach ($courses as $course): ?>
                         <?php
                         $courseTaxonomyData = [];
                         foreach ($taxonomies as $slug => $name) {
@@ -206,71 +193,66 @@ class Shortcode {
                         $isAvailable = !$maxParticipants || $currentParticipants < $maxParticipants;
                         ?>
                         <div class="cm-course-item">
-                            <?php
-                            if (has_post_thumbnail($course->ID)): ?>
+                            <?php if (has_post_thumbnail($course->ID)): ?>
                                 <div class="cm-course-image">
-                                    <?php
-                                    echo get_the_post_thumbnail($course->ID, 'medium'); ?>
+                                    <?php echo get_the_post_thumbnail($course->ID, 'medium'); ?>
                                 </div>
-                            <?php
-                            endif; ?>
+                            <?php endif; ?>
                             <div class="cm-course-content">
-                                <h3 class="cm-course-title"><?php
-                                    echo esc_html($course->post_title); ?></h3>
+                                <h3 class="cm-course-title"><?php echo esc_html($course->post_title); ?></h3>
                                 <div class="cm-course-meta">
                                     <div>
-                                        <?php
-                                        if ($startDate): ?>
-                                            <span><strong>Startdato:</strong> <?php
-                                                echo esc_html($startDate); ?></span>
-                                        <?php
-                                        endif; ?>
-                                        <?php
-                                        foreach ($courseTaxonomyData as $typeName => $terms): ?>
+                                        <?php if ($startDate): ?>
+                                            <span><strong>Startdato:</strong> <?php echo esc_html($startDate); ?></span>
+                                        <?php endif; ?>
+                                        <?php foreach ($courseTaxonomyData as $typeName => $terms): ?>
                                             <span class="cm-course-taxonomy">
-                                            <strong><?php
-                                                echo esc_html($typeName); ?>:</strong> <?php
-                                                echo esc_html(implode(', ', $terms)); ?>
+                                            <strong><?php echo esc_html($typeName); ?>:</strong> <?php echo esc_html(implode(', ', $terms)); ?>
                                         </span>
-                                        <?php
-                                        endforeach; ?>
-                                        <?php
-                                        if ($pricePerParticipant): ?>
-                                            <span title="Pris per deltaker"><strong>Pris:</strong> <?php
-                                                echo esc_html($pricePerParticipant); ?> NOK</span>
-                                        <?php
-                                        endif; ?>
+                                        <?php endforeach; ?>
+                                        <?php if ($pricePerParticipant): ?>
+                                            <span title="Pris per deltaker"><strong>Pris:</strong> <?php echo esc_html($pricePerParticipant); ?> NOK</span>
+                                        <?php endif; ?>
                                     </div>
                                     <div>
-                                        <span class="cm-availability <?php
-                                        echo $isAvailable ? 'cm-available' : 'cm-full'; ?>">
-                                            <span class="cm-availability-indicator"></span>
-                                            <?php
-                                            echo $isAvailable ? 'Ledige plasser' : 'Fullt'; ?>
-                                        </span>
+                                    <span class="cm-availability <?php echo $isAvailable ? 'cm-available' : 'cm-full'; ?>">
+                                        <span class="cm-availability-indicator"></span>
+                                        <?php echo $isAvailable ? 'Ledige plasser' : 'Fullt'; ?>
+                                    </span>
                                     </div>
                                 </div>
                                 <div class="cm-course-excerpt">
-                                    <?php
-                                    echo wp_trim_words($course->post_content, 30); ?>
+                                    <?php echo wp_trim_words($course->post_content, 30); ?>
                                 </div>
                                 <div class="cm-course-actions">
-                                    <a href="<?php
-                                    echo get_permalink($course->ID); ?>" class="cm-course-link">Vis kurs</a>
-                                    <?php
-                                    if ($more_info_url): ?>
-                                        <a href="<?php
-                                        echo esc_url($more_info_url); ?>" class="cm-more-info-link">Mer info</a>
-                                    <?php
-                                    endif; ?>
+                                    <a href="<?php echo get_permalink($course->ID); ?>" class="cm-course-link">Vis kurs</a>
+                                    <?php if ($more_info_url): ?>
+                                        <a href="<?php echo esc_url($more_info_url); ?>" class="cm-more-info-link">Merk info</a>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
-                    <?php
-                    endforeach; ?>
+                    <?php endforeach; ?>
                 </div>
-            <?php
-            endif; ?>
+
+                <div class="cm-pagination">
+                    <?php
+                    echo paginate_links([
+                        'base' => add_query_arg('paged', '%#%'),
+                        'format' => '?paged=%#%',
+                        'current' => max(1, $paged),
+                        'total' => $total_pages,
+                        'prev_text' => __('&laquo; Forrige'),
+                        'next_text' => __('Neste &raquo;'),
+                        'add_args' => array_filter([
+                                'course_search' => $searchTerm,
+                                'start_date' => $startDate,
+                                'end_date' => $endDate,
+                            ] + $selectedTaxonomies),
+                    ]);
+                    ?>
+                </div>
+            <?php endif; ?>
         </div>
         <?php
         return ob_get_clean();
