@@ -108,6 +108,15 @@ class Course {
         );
 
         add_meta_box(
+            'course_max_participants',
+            'Maks antall deltakere',
+            [$this, 'renderMaxParticipantsMetaBox'],
+            'course',
+            'normal',
+            'default'
+        );
+
+        add_meta_box(
             'course_more_info_page',
             'Mer info-side',
             [$this, 'renderMoreInfoPageMetaBox'],
@@ -176,6 +185,23 @@ class Course {
     }
 
     /**
+     * Render the max participants meta box.
+     *
+     * @param WP_Post $post The current post object.
+     */
+    public function renderMaxParticipantsMetaBox(WP_Post $post): void {
+        $max_participants = get_post_meta($post->ID, '_course_max_participants', true);
+        wp_nonce_field('course_max_participants_nonce', 'course_max_participants_nonce');
+        ?>
+        <p>
+            <label for="course_max_participants">Maks antall deltakere (valgfritt):</label><br>
+            <input type="number" name="course_max_participants" id="course_max_participants" value="<?php echo esc_attr($max_participants); ?>" min="0" step="1">
+        </p>
+        <p class="description">Sett en grense for antall deltakere. La stå tomt for ubegrenset kapasitet.</p>
+        <?php
+    }
+
+    /**
      * Render the more info page meta box.
      *
      * @param WP_Post $post The current post object.
@@ -240,6 +266,20 @@ class Course {
 
         if (isset($_POST['course_price'])) {
             update_post_meta($post_id, '_course_price', absint($_POST['course_price']));
+        }
+
+        // Save max participants
+        if (!isset($_POST['course_max_participants_nonce']) || !wp_verify_nonce($_POST['course_max_participants_nonce'], 'course_max_participants_nonce')) {
+            return;
+        }
+
+        if (isset($_POST['course_max_participants'])) {
+            $max_participants = sanitize_text_field($_POST['course_max_participants']);
+            if ($max_participants !== '' && $max_participants >= 0) {
+                update_post_meta($post_id, '_course_max_participants', absint($max_participants));
+            } else {
+                delete_post_meta($post_id, '_course_max_participants');
+            }
         }
 
         // Save more info page

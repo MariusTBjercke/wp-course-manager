@@ -233,18 +233,60 @@
 
   .cm-course-title {
     margin-top: 0;
-    margin-bottom: 1rem;
+    margin-bottom: .5rem;
     font-size: 1.25rem;
     color: #333;
+    border-bottom: 1px solid #ececec;
+    padding-bottom: .5rem;
   }
 
   .cm-course-meta {
     display: flex;
+    flex-direction: row;
     flex-wrap: wrap;
+    justify-content: space-between;
     gap: 1rem;
     margin-bottom: 1rem;
     font-size: 0.9rem;
     color: #555;
+
+    div:first-child {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    div:last-child {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .cm-availability {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      .cm-availability-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+
+      &.cm-available {
+        .cm-availability-indicator {
+          background-color: #46b450; // Grønn sirkel
+        }
+      }
+
+      &.cm-full {
+        .cm-availability-indicator {
+          background-color: #dc3232; // Rød sirkel
+        }
+      }
+    }
   }
 
   .cm-course-excerpt {
@@ -438,6 +480,15 @@
     }
   }
 
+  .cm-no-availability {
+    padding: 1rem;
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    text-align: center;
+  }
+
   label {
     font-weight: 400;
     margin-bottom: 0.3rem;
@@ -560,8 +611,10 @@
 @media (max-width: 480px) {
   .cm-course-manager {
     .cm-course-meta {
-      flex-direction: column;
-      gap: 0.5rem;
+      div:first-child {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
     }
   }
 }

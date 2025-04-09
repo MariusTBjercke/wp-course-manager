@@ -47,7 +47,7 @@ class Shortcode {
 
         // Handle multiple selections for each taxonomy
         foreach ($taxonomies as $slug => $name) {
-            $selectedTaxonomies[$slug] = isset($_GET[$slug]) ? (array) $_GET[$slug] : [];
+            $selectedTaxonomies[$slug] = isset($_GET[$slug]) ? (array)$_GET[$slug] : [];
             // Sanitize each value in the array
             $selectedTaxonomies[$slug] = array_map('sanitize_text_field', $selectedTaxonomies[$slug]);
         }
@@ -108,45 +108,66 @@ class Shortcode {
         ob_start();
         ?>
         <div class="cm-course-manager">
-            <?php if ($attributes['show_filters'] === 'yes'): ?>
+            <?php
+            if ($attributes['show_filters'] === 'yes'): ?>
                 <div class="cm-filters">
-                    <form method="get" action="<?php echo esc_url(get_permalink()); ?>">
+                    <form method="get" action="<?php
+                    echo esc_url(get_permalink()); ?>">
                         <div class="cm-filter-group cm-search-group">
                             <label for="course_search">Søk:</label>
-                            <input type="text" id="course_search" name="course_search" placeholder="Søk etter kurs" value="<?php echo esc_attr($searchTerm); ?>"/>
+                            <input type="text" id="course_search" name="course_search" placeholder="Søk etter kurs"
+                                   value="<?php
+                                   echo esc_attr($searchTerm); ?>"/>
                         </div>
                         <div class="cm-filter-group">
                             <label for="start_date">Fra dato:</label>
-                            <input type="date" id="start_date" name="start_date" value="<?php echo esc_attr($startDate); ?>"/>
+                            <input type="date" id="start_date" name="start_date" value="<?php
+                            echo esc_attr($startDate); ?>"/>
                         </div>
                         <div class="cm-filter-group">
                             <label for="end_date">Til dato:</label>
-                            <input type="date" id="end_date" name="end_date" value="<?php echo esc_attr($endDate); ?>"/>
+                            <input type="date" id="end_date" name="end_date" value="<?php
+                            echo esc_attr($endDate); ?>"/>
                         </div>
-                        <?php foreach ($taxonomies as $slug => $name): ?>
+                        <?php
+                        foreach ($taxonomies as $slug => $name): ?>
                             <div class="cm-filter-group cm-taxonomy-filter">
-                                <label><?php echo esc_html($name); ?>:</label>
+                                <label><?php
+                                    echo esc_html($name); ?>:</label>
                                 <div class="cm-filter-dropdown">
-                                    <button type="button" class="cm-filter-toggle"><?php echo esc_html($name); ?> (<?php echo count(array_filter($selectedTaxonomies[$slug])) ?: 'Alle'; ?> valgt)</button>
+                                    <button type="button" class="cm-filter-toggle"><?php
+                                        echo esc_html($name); ?> (<?php
+                                        echo count(array_filter($selectedTaxonomies[$slug])) ?: 'Alle'; ?> valgt)
+                                    </button>
                                     <div class="cm-filter-options">
-                                        <?php $this->renderTaxonomyTerms($taxonomyTerms[$slug], $slug, $selectedTaxonomies[$slug]); ?>
+                                        <?php
+                                        $this->renderTaxonomyTerms(
+                                            $taxonomyTerms[$slug],
+                                            $slug,
+                                            $selectedTaxonomies[$slug]
+                                        ); ?>
                                     </div>
                                 </div>
                             </div>
-                        <?php endforeach; ?>
+                        <?php
+                        endforeach; ?>
                         <button type="submit" class="cm-filter-button">Filtrer</button>
                         <button type="button" class="cm-reset-button">Nullstill</button>
                     </form>
                 </div>
-            <?php endif; ?>
+            <?php
+            endif; ?>
 
-            <?php if (empty($courses)): ?>
+            <?php
+            if (empty($courses)): ?>
                 <div class="cm-no-courses">
                     <p>Ingen kurs funnet. Vennligst prøv andre filtre.</p>
                 </div>
-            <?php else: ?>
+            <?php
+            else: ?>
                 <div class="cm-course-list">
-                    <?php foreach ($courses as $course): ?>
+                    <?php
+                    foreach ($courses as $course): ?>
                         <?php
                         $courseTaxonomyData = [];
                         foreach ($taxonomies as $slug => $name) {
@@ -158,45 +179,98 @@ class Shortcode {
                         $startDate = get_post_meta($course->ID, 'startdato', true);
                         $startDate = $startDate ? DateTime::createFromFormat('Y-m-d', $startDate)->format('d.m.Y') : '';
                         $pricePerParticipant = get_post_meta($course->ID, '_course_price', true);
+                        $maxParticipants = get_post_meta($course->ID, '_course_max_participants', true);
                         $more_info_page_id = get_post_meta($course->ID, '_course_more_info_page', true);
                         $more_info_url = $more_info_page_id ? get_permalink($more_info_page_id) : '';
+
+                        $enrollmentArgs = [
+                            'post_type' => 'course_enrollment',
+                            'post_status' => 'publish',
+                            'meta_query' => [
+                                [
+                                    'key' => 'cm_course_id',
+                                    'value' => $course->ID,
+                                    'compare' => '=',
+                                ],
+                            ],
+                        ];
+                        $enrollments = get_posts($enrollmentArgs);
+                        $currentParticipants = 0;
+                        foreach ($enrollments as $enrollment) {
+                            $participants = get_post_meta($enrollment->ID, 'cm_participants', true);
+                            if (is_array($participants)) {
+                                $currentParticipants += count($participants);
+                            }
+                        }
+
+                        $isAvailable = !$maxParticipants || $currentParticipants < $maxParticipants;
                         ?>
                         <div class="cm-course-item">
-                            <?php if (has_post_thumbnail($course->ID)): ?>
+                            <?php
+                            if (has_post_thumbnail($course->ID)): ?>
                                 <div class="cm-course-image">
-                                    <?php echo get_the_post_thumbnail($course->ID, 'medium'); ?>
+                                    <?php
+                                    echo get_the_post_thumbnail($course->ID, 'medium'); ?>
                                 </div>
-                            <?php endif; ?>
+                            <?php
+                            endif; ?>
                             <div class="cm-course-content">
-                                <h3 class="cm-course-title"><?php echo esc_html($course->post_title); ?></h3>
+                                <h3 class="cm-course-title"><?php
+                                    echo esc_html($course->post_title); ?></h3>
                                 <div class="cm-course-meta">
-                                    <?php if ($startDate): ?>
-                                        <span><strong>Startdato:</strong> <?php echo esc_html($startDate); ?></span>
-                                    <?php endif; ?>
-                                    <?php foreach ($courseTaxonomyData as $typeName => $terms): ?>
-                                        <span class="cm-course-taxonomy">
-                                        <strong><?php echo esc_html($typeName); ?>:</strong> <?php echo esc_html(implode(', ', $terms)); ?>
-                                    </span>
-                                    <?php endforeach; ?>
-                                    <?php if ($pricePerParticipant): ?>
-                                        <span><strong>Pris per deltaker:</strong>
-                                            <?php echo esc_html($pricePerParticipant); ?> NOK</span>
-                                    <?php endif; ?>
+                                    <div>
+                                        <?php
+                                        if ($startDate): ?>
+                                            <span><strong>Startdato:</strong> <?php
+                                                echo esc_html($startDate); ?></span>
+                                        <?php
+                                        endif; ?>
+                                        <?php
+                                        foreach ($courseTaxonomyData as $typeName => $terms): ?>
+                                            <span class="cm-course-taxonomy">
+                                            <strong><?php
+                                                echo esc_html($typeName); ?>:</strong> <?php
+                                                echo esc_html(implode(', ', $terms)); ?>
+                                        </span>
+                                        <?php
+                                        endforeach; ?>
+                                        <?php
+                                        if ($pricePerParticipant): ?>
+                                            <span title="Pris per deltaker"><strong>Pris:</strong> <?php
+                                                echo esc_html($pricePerParticipant); ?> NOK</span>
+                                        <?php
+                                        endif; ?>
+                                    </div>
+                                    <div>
+                                        <span class="cm-availability <?php
+                                        echo $isAvailable ? 'cm-available' : 'cm-full'; ?>">
+                                            <span class="cm-availability-indicator"></span>
+                                            <?php
+                                            echo $isAvailable ? 'Ledige plasser' : 'Fullt'; ?>
+                                        </span>
+                                    </div>
                                 </div>
                                 <div class="cm-course-excerpt">
-                                    <?php echo wp_trim_words($course->post_content, 30); ?>
+                                    <?php
+                                    echo wp_trim_words($course->post_content, 30); ?>
                                 </div>
                                 <div class="cm-course-actions">
-                                    <a href="<?php echo get_permalink($course->ID); ?>" class="cm-course-link">Vis kurs</a>
-                                    <?php if ($more_info_url): ?>
-                                        <a href="<?php echo esc_url($more_info_url); ?>" class="cm-more-info-link">Mer info</a>
-                                    <?php endif; ?>
+                                    <a href="<?php
+                                    echo get_permalink($course->ID); ?>" class="cm-course-link">Vis kurs</a>
+                                    <?php
+                                    if ($more_info_url): ?>
+                                        <a href="<?php
+                                        echo esc_url($more_info_url); ?>" class="cm-more-info-link">Mer info</a>
+                                    <?php
+                                    endif; ?>
                                 </div>
                             </div>
                         </div>
-                    <?php endforeach; ?>
+                    <?php
+                    endforeach; ?>
                 </div>
-            <?php endif; ?>
+            <?php
+            endif; ?>
         </div>
         <?php
         return ob_get_clean();
@@ -245,7 +319,12 @@ class Shortcode {
      * @param array $selected_terms The currently selected terms.
      * @param int $level The current nesting level (for indentation).
      */
-    private function renderTaxonomyTerms(array $terms, string $taxonomy_slug, array $selected_terms, int $level = 0): void {
+    private function renderTaxonomyTerms(
+        array $terms,
+        string $taxonomy_slug,
+        array $selected_terms,
+        int $level = 0
+    ): void {
         foreach ($terms as $term_data) {
             $term = $term_data['term'];
             $children = $term_data['children'];
@@ -253,10 +332,17 @@ class Shortcode {
                 echo '<div class="cm-filter-option-group">';
             }
             ?>
-            <div class="cm-filter-option <?php echo $term->parent == 0 ? 'cm-filter-option-parent' : 'cm-filter-option-child'; ?>" style="padding-left: <?php echo $level == 0 ? 1 : 1 + ($level * 0.5); ?>rem;">
+            <div class="cm-filter-option <?php
+            echo $term->parent == 0 ? 'cm-filter-option-parent' : 'cm-filter-option-child'; ?>"
+                 style="padding-left: <?php
+                 echo $level == 0 ? 1 : 1 + ($level * 0.5); ?>rem;">
                 <label>
-                    <input type="checkbox" name="<?php echo esc_attr($taxonomy_slug); ?>[]" value="<?php echo esc_attr($term->slug); ?>" <?php echo in_array($term->slug, $selected_terms) ? 'checked' : ''; ?>>
-                    <?php echo esc_html($term->name); ?>
+                    <input type="checkbox" name="<?php
+                    echo esc_attr($taxonomy_slug); ?>[]" value="<?php
+                    echo esc_attr($term->slug); ?>" <?php
+                    echo in_array($term->slug, $selected_terms) ? 'checked' : ''; ?>>
+                    <?php
+                    echo esc_html($term->name); ?>
                 </label>
             </div>
             <?php
@@ -289,10 +375,36 @@ class Shortcode {
 
         $courseId = get_the_ID();
         $submissionMessage = '';
-        $pricePerParticipant = (int) get_post_meta($courseId, '_course_price', true);
+        $pricePerParticipant = (int)get_post_meta($courseId, '_course_price', true);
+        $maxParticipants = get_post_meta($courseId, '_course_max_participants', true);
+
+        // Check the number of participants
+        $enrollmentArgs = [
+            'post_type' => 'course_enrollment',
+            'post_status' => 'publish',
+            'meta_query' => [
+                [
+                    'key' => 'cm_course_id',
+                    'value' => $courseId,
+                    'compare' => '=',
+                ],
+            ],
+        ];
+        $enrollments = get_posts($enrollmentArgs);
+        $currentParticipants = 0;
+        foreach ($enrollments as $enrollment) {
+            $participants = get_post_meta($enrollment->ID, 'cm_participants', true);
+            if (is_array($participants)) {
+                $currentParticipants += count($participants);
+            }
+        }
 
         if (isset($_GET['payment_success']) && $_GET['payment_success'] === '1') {
-            $submissionMessage = '<p class="success">Påmeldingen er fullført! Du vil motta en bekreftelse på e-post.</p>';
+            return '<p class="success">Påmeldingen er fullført! Du vil motta en bekreftelse på e-post.</p>';
+        }
+
+        if ($maxParticipants && $currentParticipants >= $maxParticipants) {
+            return '<p class="cm-no-availability">Dette kurset er fullt. Ingen flere plasser er tilgjengelige.</p>';
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cm_enrollment_nonce'])) {
@@ -309,7 +421,7 @@ class Shortcode {
                 $buyer_company = sanitize_text_field($_POST['cm_buyer_company'] ?? '');
 
                 $participants = [];
-                $participant_count = isset($_POST['cm_participant_count']) ? (int) $_POST['cm_participant_count'] : 0;
+                $participant_count = isset($_POST['cm_participant_count']) ? (int)$_POST['cm_participant_count'] : 0;
 
                 for ($i = 0; $i < $participant_count; $i++) {
                     if (isset($_POST['cm_participant_name'][$i], $_POST['cm_participant_email'][$i])) {
@@ -335,7 +447,9 @@ class Shortcode {
                 } else {
                     $validParticipants = true;
                     foreach ($participants as $participant) {
-                        if (empty($participant['name']) || empty($participant['email']) || !is_email($participant['email'])) {
+                        if (empty($participant['name']) || empty($participant['email']) || !is_email(
+                                $participant['email']
+                            )) {
                             $validParticipants = false;
                             break;
                         }
@@ -345,6 +459,8 @@ class Shortcode {
                         $submissionMessage = '<p class="error">Vennligst fyll inn alle påkrevde felt for deltakere med gyldig data.</p>';
                     } elseif (!empty($buyer_postal_code) && !preg_match('/^\d{4}$/', $buyer_postal_code)) {
                         $submissionMessage = '<p class="error">Postnummer må være 4 sifre (f.eks. 1234).</p>';
+                    } elseif ($maxParticipants && ($currentParticipants + count($participants)) > $maxParticipants) {
+                        $submissionMessage = '<p class="error">Antall deltakere overskrider maksgrensen på ' . esc_html($maxParticipants) . ' plasser.</p>';
                     } else {
                         $totalPrice = $pricePerParticipant * count($participants);
 
@@ -365,7 +481,9 @@ class Shortcode {
                         if ($totalPrice === 0) {
                             $enrollmentId = $this->completeEnrollment($enrollmentData);
                             if ($enrollmentId) {
-                                $submissionMessage = '<p class="success">Påmeldingen er fullført! En bekreftelse er sendt til ' . esc_html($buyer_email) . '.</p>';
+                                $submissionMessage = '<p class="success">Påmeldingen er fullført! En bekreftelse er sendt til ' . esc_html(
+                                        $buyer_email
+                                    ) . '.</p>';
                             } else {
                                 $submissionMessage = '<p class="error">Det oppstod en feil ved registrering av påmeldingen. Vennligst prøv igjen.</p>';
                             }
@@ -399,14 +517,19 @@ class Shortcode {
         ob_start();
         ?>
         <div class="cm-enrollment-form">
-            <h2>Påmelding til <?php echo esc_html(get_the_title($courseId)); ?></h2>
+            <h2>Påmelding til <?php
+                echo esc_html(get_the_title($courseId)); ?></h2>
             <p>Fyll inn detaljene nedenfor for å melde deg på kurset.</p>
-            <?php if ($submissionMessage): ?>
-                <?php echo $submissionMessage; ?>
-            <?php endif; ?>
+            <?php
+            if ($submissionMessage): ?>
+                <?php
+                echo $submissionMessage; ?>
+            <?php
+            endif; ?>
 
             <form method="post" action="">
-                <?php wp_nonce_field('cm_enroll_action', 'cm_enrollment_nonce'); ?>
+                <?php
+                wp_nonce_field('cm_enroll_action', 'cm_enrollment_nonce'); ?>
                 <input type="hidden" name="cm_participant_count" id="cm_participant_count" value="0">
 
                 <fieldset>
@@ -423,7 +546,8 @@ class Shortcode {
 
                     <div class="cm-form-field">
                         <label for="cm_buyer_email">E-post <span class="required">*</span></label>
-                        <input type="email" name="cm_buyer_email" id="cm_buyer_email" required placeholder="navn@eksempel.no">
+                        <input type="email" name="cm_buyer_email" id="cm_buyer_email" required
+                               placeholder="navn@eksempel.no">
                     </div>
 
                     <div class="cm-form-field">
@@ -433,7 +557,8 @@ class Shortcode {
 
                     <div class="cm-form-field">
                         <label for="cm_buyer_street_address">Gateadresse</label>
-                        <input type="text" name="cm_buyer_street_address" id="cm_buyer_street_address" placeholder="Gateveien 1">
+                        <input type="text" name="cm_buyer_street_address" id="cm_buyer_street_address"
+                               placeholder="Gateveien 1">
                     </div>
 
                     <div class="cm-address-group">
@@ -449,7 +574,8 @@ class Shortcode {
 
                     <div class="cm-form-field">
                         <label for="cm_buyer_comments">Kommentarer/spørsmål</label>
-                        <textarea name="cm_buyer_comments" id="cm_buyer_comments" placeholder="Eventuelle kommentarer eller spørsmål"></textarea>
+                        <textarea name="cm_buyer_comments" id="cm_buyer_comments"
+                                  placeholder="Eventuelle kommentarer eller spørsmål"></textarea>
                     </div>
                 </fieldset>
 
@@ -461,8 +587,13 @@ class Shortcode {
                 </fieldset>
 
                 <div class="cm-total-price">
-                    <p><strong>Total pris:</strong> <span id="cm-total-price-value">0</span> NOK (for <span id="cm-participant-count">0</span> deltakere<?php if ($pricePerParticipant) { echo ' á ' . $pricePerParticipant . ' NOK'; } ?>)</p>
-                    <input type="hidden" id="cm-price-per-participant" value="<?php echo $pricePerParticipant; ?>">
+                    <p><strong>Total pris:</strong> <span id="cm-total-price-value">0</span> NOK (for <span
+                                id="cm-participant-count">0</span> deltakere<?php
+                        if ($pricePerParticipant) {
+                            echo ' á ' . $pricePerParticipant . ' NOK';
+                        } ?>)</p>
+                    <input type="hidden" id="cm-price-per-participant" value="<?php
+                    echo $pricePerParticipant; ?>">
                 </div>
 
                 <button type="submit">Gå til betaling</button>
@@ -595,7 +726,9 @@ class Shortcode {
         if ($enrollmentData && is_array($enrollmentData)) {
             $enrollmentId = $this->completeEnrollment($enrollmentData);
             if ($enrollmentId) {
-                $order->add_order_note(__('Påmelding fullført via Course Manager (ID: ' . $enrollmentId . ')', 'course-manager'));
+                $order->add_order_note(
+                    __('Påmelding fullført via Course Manager (ID: ' . $enrollmentId . ')', 'course-manager')
+                );
             } else {
                 $order->add_order_note(__('Feil ved fullføring av påmelding i Course Manager.', 'course-manager'));
             }
