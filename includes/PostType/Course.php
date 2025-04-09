@@ -53,7 +53,7 @@ class Course {
         // Dynamically add taxonomies to the course post type
         add_filter('register_post_type_args', [$this, 'addDynamicTaxonomies'], 10, 2);
 
-        // Register meta boxes for custom email message and price
+        // Register meta boxes for custom email message, price, and more info page
         add_action('add_meta_boxes', [$this, 'addMetaBoxes']);
         add_action('save_post', [$this, 'saveMetaBoxData']);
     }
@@ -92,6 +92,15 @@ class Course {
             'course_price',
             'Pris per deltaker',
             [$this, 'renderPriceMetaBox'],
+            'course',
+            'normal',
+            'default'
+        );
+
+        add_meta_box(
+            'course_more_info_page',
+            'Mer info-side',
+            [$this, 'renderMoreInfoPageMetaBox'],
             'course',
             'normal',
             'default'
@@ -140,6 +149,31 @@ class Course {
     }
 
     /**
+     * Render the more info page meta box.
+     *
+     * @param WP_Post $post The current post object.
+     */
+    public function renderMoreInfoPageMetaBox(WP_Post $post): void {
+        $selected_page = get_post_meta($post->ID, '_course_more_info_page', true);
+        wp_nonce_field('course_more_info_page_nonce', 'course_more_info_page_nonce');
+        ?>
+        <p>
+            <label for="course_more_info_page">Velg en side for mer informasjon (valgfritt):</label><br>
+            <?php
+            wp_dropdown_pages([
+                'name' => 'course_more_info_page',
+                'id' => 'course_more_info_page',
+                'selected' => $selected_page,
+                'show_option_none' => '— Ingen side valgt —',
+                'option_none_value' => '',
+            ]);
+            ?>
+        </p>
+        <p class="description">Velg en side som inneholder mer informasjon om dette kurset. Hvis en side er valgt, vises en "Mer info"-knapp på kurslisten.</p>
+        <?php
+    }
+
+    /**
      * Save the meta box data.
      *
      * @param integer $post_id The ID of the post being saved.
@@ -165,6 +199,20 @@ class Course {
 
         if (isset($_POST['course_price'])) {
             update_post_meta($post_id, '_course_price', absint($_POST['course_price']));
+        }
+
+        // Save more info page
+        if (!isset($_POST['course_more_info_page_nonce']) || !wp_verify_nonce($_POST['course_more_info_page_nonce'], 'course_more_info_page_nonce')) {
+            return;
+        }
+
+        if (isset($_POST['course_more_info_page'])) {
+            $page_id = absint($_POST['course_more_info_page']);
+            if ($page_id > 0) {
+                update_post_meta($post_id, '_course_more_info_page', $page_id);
+            } else {
+                delete_post_meta($post_id, '_course_more_info_page');
+            }
         }
     }
 }

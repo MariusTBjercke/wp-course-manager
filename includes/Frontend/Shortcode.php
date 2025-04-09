@@ -77,13 +77,18 @@ class Shortcode {
         $courses = get_posts($args);
         $taxonomyTerms = [];
         foreach ($taxonomies as $slug => $name) {
-            $taxonomyTerms[$slug] = get_terms(['taxonomy' => $slug, 'hide_empty' => false]);
+            $terms = get_terms(['taxonomy' => $slug, 'hide_empty' => false]);
+            if (!is_wp_error($terms)) {
+                // Organize terms hierarchically
+                $taxonomyTerms[$slug] = $this->organizeTermsHierarchically($terms);
+            } else {
+                $taxonomyTerms[$slug] = [];
+            }
         }
 
         ob_start();
         ?>
         <div class="cm-course-manager">
-            <h1>Kurs</h1>
             <?php if ($attributes['show_filters'] === 'yes'): ?>
                 <div class="cm-filters">
                     <form method="get" action="<?php echo esc_url(get_permalink()); ?>">
@@ -97,12 +102,7 @@ class Shortcode {
                                 <div class="cm-filter-dropdown">
                                     <button type="button" class="cm-filter-toggle"><?php echo esc_html($name); ?> (<?php echo count(array_filter($selectedTaxonomies[$slug])) ?: 'Alle'; ?> valgt)</button>
                                     <div class="cm-filter-options">
-                                        <?php foreach ($taxonomyTerms[$slug] as $term): ?>
-                                            <label class="cm-filter-option">
-                                                <input type="checkbox" name="<?php echo esc_attr($slug); ?>[]" value="<?php echo esc_attr($term->slug); ?>" <?php echo in_array($term->slug, $selectedTaxonomies[$slug]) ? 'checked' : ''; ?>>
-                                                <?php echo esc_html($term->name); ?>
-                                            </label>
-                                        <?php endforeach; ?>
+                                        <?php $this->renderTaxonomyTerms($taxonomyTerms[$slug], $slug, $selectedTaxonomies[$slug]); ?>
                                     </div>
                                 </div>
                             </div>
@@ -128,6 +128,8 @@ class Shortcode {
                                 $courseTaxonomyData[$name] = wp_list_pluck($terms, 'name');
                             }
                         }
+                        $more_info_page_id = get_post_meta($course->ID, '_course_more_info_page', true);
+                        $more_info_url = $more_info_page_id ? get_permalink($more_info_page_id) : '';
                         ?>
                         <div class="cm-course-item">
                             <?php if (has_post_thumbnail($course->ID)): ?>
@@ -147,7 +149,12 @@ class Shortcode {
                                 <div class="cm-course-excerpt">
                                     <?php echo wp_trim_words($course->post_content, 30); ?>
                                 </div>
-                                <a href="<?php echo get_permalink($course->ID); ?>" class="cm-course-link">Vis kurs</a>
+                                <div class="cm-course-actions">
+                                    <a href="<?php echo get_permalink($course->ID); ?>" class="cm-course-link">Vis kurs</a>
+                                    <?php if ($more_info_url): ?>
+                                        <a href="<?php echo esc_url($more_info_url); ?>" class="cm-more-info-link">Mer info</a>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -156,6 +163,76 @@ class Shortcode {
         </div>
         <?php
         return ob_get_clean();
+    }
+
+    /**
+     * Organize terms hierarchically into a nested array.
+     *
+     * @param array $terms List of taxonomy terms.
+     * @return array Organized terms with children nested under parents.
+     */
+    private function organizeTermsHierarchically(array $terms): array {
+        $organized = [];
+        $term_map = [];
+
+        // First, map all terms by their ID for easy lookup
+        foreach ($terms as $term) {
+            $term_map[$term->term_id] = [
+                'term' => $term,
+                'children' => []
+            ];
+        }
+
+        // Then, organize terms into a hierarchy
+        foreach ($term_map as $term_id => &$term_data) {
+            $term = $term_data['term'];
+            if ($term->parent == 0) {
+                // This is a parent term
+                $organized[$term_id] = $term_data;
+            } else {
+                // This is a child term, add it to its parent's children
+                if (isset($term_map[$term->parent])) {
+                    $term_map[$term->parent]['children'][$term_id] = $term_data;
+                }
+            }
+        }
+
+        return $organized;
+    }
+
+    /**
+     * Render taxonomy terms hierarchically in the dropdown.
+     *
+     * @param array $terms Organized terms with children.
+     * @param string $taxonomy_slug The taxonomy slug.
+     * @param array $selected_terms The currently selected terms.
+     * @param int $level The current nesting level (for indentation).
+     */
+    private function renderTaxonomyTerms(array $terms, string $taxonomy_slug, array $selected_terms, int $level = 0): void {
+        foreach ($terms as $term_data) {
+            $term = $term_data['term'];
+            $children = $term_data['children'];
+            if ($level == 0) {
+                echo '<div class="cm-filter-option-group">';
+            }
+            ?>
+            <div class="cm-filter-option <?php echo $term->parent == 0 ? 'cm-filter-option-parent' : 'cm-filter-option-child'; ?>" style="padding-left: <?php echo $level == 0 ? 1 : 1 + ($level * 0.5); ?>rem;">
+                <label>
+                    <input type="checkbox" name="<?php echo esc_attr($taxonomy_slug); ?>[]" value="<?php echo esc_attr($term->slug); ?>" <?php echo in_array($term->slug, $selected_terms) ? 'checked' : ''; ?>>
+                    <?php echo esc_html($term->name); ?>
+                </label>
+            </div>
+            <?php
+            if (!empty($children)) {
+                if ($level == 0) {
+                    echo '<div class="cm-filter-option-separator"></div>';
+                }
+                $this->renderTaxonomyTerms($children, $taxonomy_slug, $selected_terms, $level + 1);
+            }
+            if ($level == 0) {
+                echo '</div>';
+            }
+        }
     }
 
     /**

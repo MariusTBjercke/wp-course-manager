@@ -95,7 +95,7 @@
         .cm-filter-options {
           display: none;
           position: absolute;
-          top: 100%;
+          top: calc(100% + 0.5rem);
           left: 0;
           right: 0;
           background-color: #fff;
@@ -108,11 +108,31 @@
           padding: 0.5rem 0;
         }
 
+        .cm-filter-option-group {
+          margin-bottom: 0.5rem; // Add spacing between groups
+
+          &:last-child {
+            margin-bottom: 0; // Remove margin from the last group to avoid extra space at the bottom
+          }
+        }
+
         .cm-filter-option {
           display: block;
           padding: 0.5rem 1rem;
           cursor: pointer;
           font-size: 0.9rem;
+
+          &.cm-filter-option-parent {
+            font-weight: 600;
+            color: #333;
+            padding-bottom: 0.25rem;
+          }
+
+          &.cm-filter-option-child {
+            color: #333;
+            font-weight: 400;
+            padding-bottom: 0.3rem;
+          }
 
           input[type="checkbox"] {
             margin-right: 0.5rem;
@@ -121,6 +141,12 @@
           &:hover {
             background-color: #f5f5f5;
           }
+        }
+
+        .cm-filter-option-separator {
+          height: 1px;
+          background-color: #ddd;
+          margin: 0.25rem 1rem;
         }
       }
     }
@@ -208,18 +234,36 @@
     line-height: 1.5;
   }
 
-  .cm-course-link {
+  .cm-course-actions {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .cm-course-link,
+  .cm-more-info-link {
     display: inline-block;
     padding: 0.5rem 1rem;
-    background-color: #46b450;
-    color: #fff;
     text-decoration: none;
     border-radius: 4px;
     font-weight: 600;
     transition: background-color 0.3s ease;
+  }
+
+  .cm-course-link {
+    background-color: #46b450;
+    color: #fff;
 
     &:hover {
       background-color: #389b3e;
+    }
+  }
+
+  .cm-more-info-link {
+    background-color: #6c757d; // Gray color to distinguish from the primary button
+    color: #fff;
+
+    &:hover {
+      background-color: #5a6268;
     }
   }
 
@@ -459,7 +503,18 @@
     }
 
     .cm-course-list {
-      grid-template-columns: 1fr;
+      flex-direction: column;
+    }
+
+    .cm-course-actions {
+      flex-direction: column;
+      gap: 0.5rem;
+
+      .cm-course-link,
+      .cm-more-info-link {
+        width: 100%;
+        text-align: center;
+      }
     }
   }
 
