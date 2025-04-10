@@ -9,7 +9,8 @@ A simple and flexible WordPress plugin for managing courses, displaying availabl
 - Frontend course list with filtering based on dynamic taxonomies and search
 - Enrollment form per course with optional email confirmation (configurable in settings)
 - Payment integration with WooCommerce, supporting multiple payment gateways (e.g., Stripe, Vipps, offline payments)
-- Easy integration via shortcodes: `[course_manager]` and `[course_enrollment_form]`
+  Easy integration via shortcodes: `[course_manager]`, `[course_enrollment_form]`, and `[course_manager_slider]`
+- Frontend course slider (`[course_manager_slider]`) displaying the latest courses in a minimalist, auto-rotating carousel
 - Clean and extendable codebase
 - Admin settings page for managing plugin options, including:
     - Number of courses per page
@@ -46,12 +47,18 @@ Add the shortcode [course_enrollment_form] to a course page to display the enrol
 Example:
 [course_manager show_filters="no"]
 
+### Shortcode Options for [course_manager_slider]
+- No additional options currently; displays the latest courses based on the number set in admin settings.
+
+Example:
+[course_manager_slider]
+
 ### Admin Management
 - **Courses**: Add and manage courses from the "Courses" menu in the admin. Set a price per participant using the `_course_price` meta field (optional for free courses).
 - **Dynamic Taxonomies**: Configure taxonomies (e.g., "Locations", "Categories", "Types") from the "Settings" submenu under "Courses". These will appear as taxonomy menus in the admin.
 - **Enrollments**: View and manage enrollments from the "Enrollments" submenu under "Courses".
 - **Settings**: Configure plugin options from the "Settings" submenu under "Courses":
-    - **General**: Set the number of courses per page in the course list.
+    - **General**: Set the number of courses per page in the course list and the number of courses in the slider (`course_manager_slider_items`).
     - **Email**: Configure default email confirmation messages (for customers and admins), the admin email address for notifications, and an option to enable/disable plugin-managed emails.
 - **Custom Email Per Course**: Edit a course and specify a custom email confirmation message in the "Custom Email Confirmation" meta box (optional).
 - **Payment**: Payment methods (e.g., Stripe, Vipps, offline payments) are managed via **WooCommerce > Settings > Payments**. Course Manager relies on WooCommerce for all payment processing.
