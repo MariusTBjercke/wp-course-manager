@@ -40,6 +40,12 @@ class AdminSettings {
             'default' => 10
         ]);
 
+        register_setting('course_manager_settings', 'course_manager_slider_items', [
+            'type' => 'integer',
+            'sanitize_callback' => 'absint',
+            'default' => 5
+        ]);
+
         register_setting('course_manager_settings', 'course_manager_taxonomies', [
             'type' => 'array',
             'sanitize_callback' => [$this, 'sanitizeTaxonomies'],
@@ -98,6 +104,14 @@ class AdminSettings {
             'course_manager_items_per_page',
             'Antall kurs per side',
             [$this, 'renderItemsPerPageField'],
+            'course_manager_settings_general',
+            'course_manager_general_section'
+        );
+
+        add_settings_field(
+            'course_manager_slider_items',
+            'Antall kurs i slider',
+            [$this, 'renderSliderItemsField'],
             'course_manager_settings_general',
             'course_manager_general_section'
         );
@@ -229,7 +243,18 @@ class AdminSettings {
         ?>
         <input type="number" name="course_manager_items_per_page" value="<?php
         echo esc_attr($value); ?>" min="1" max="100"/>
-        <p class="description">Antall kurs som vises per side i kurslisten.</p>
+        <p class="description">Antall kurs som vises per side i kurslisten ([course_manager]).</p>
+        <?php
+    }
+
+    /**
+     * Render the slider items field.
+     */
+    public function renderSliderItemsField(): void {
+        $value = get_option('course_manager_slider_items', 5);
+        ?>
+        <input type="number" name="course_manager_slider_items" value="<?php echo esc_attr($value); ?>" min="1" max="20"/>
+        <p class="description">Antall kurs som vises i slideren ([course_manager_slider]).</p>
         <?php
     }
 

@@ -1,6 +1,6 @@
 import CourseManager from "./lib/CourseManager";
+import CourseSlider from "./lib/CourseSlider";
 
-// Initialize the course manager
+// Initialize the course manager and slider scripts
 new CourseManager();
-
-console.log('Course Manager initialized');
+new CourseSlider();

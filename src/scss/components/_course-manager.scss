@@ -1,0 +1,421 @@
+// Course Manager Styles
+
+.cm-course-manager {
+  margin: 2rem 0;
+  font-family: inherit;
+
+  h1 {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+    color: #333;
+  }
+
+  // Filters
+  .cm-filters {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: flex-end;
+    }
+
+    .cm-filter-group {
+      flex: 1;
+      min-width: 200px;
+
+      label {
+        display: block;
+        margin-bottom: 0.25rem;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #333;
+      }
+
+      input[type="text"] {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: #fff;
+        box-sizing: border-box;
+        transition: border-color 0.3s ease;
+
+        &:focus {
+          border-color: #46b450;
+          outline: none;
+        }
+
+        &::placeholder {
+          color: #999;
+          font-style: italic;
+        }
+      }
+    }
+
+    input[type="date"] {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: #fff;
+      box-sizing: border-box;
+      transition: border-color 0.3s ease;
+
+      &:focus {
+        border-color: #46b450;
+        outline: none;
+      }
+    }
+
+    .cm-search-group {
+      flex: 1;
+      min-width: 250px;
+    }
+
+    .cm-taxonomy-filter {
+      position: relative;
+
+      .cm-filter-dropdown {
+        position: relative;
+
+        .cm-filter-toggle {
+          width: 100%;
+          padding: 0.5rem;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          background-color: #fff;
+          text-align: left;
+          cursor: pointer;
+          font-weight: 500;
+          color: #333;
+          transition: border-color 0.3s ease;
+
+          &:hover {
+            border-color: #46b450;
+          }
+
+          &:after {
+            content: '▼';
+            position: absolute;
+            right: 1rem;
+            font-size: 0.8rem;
+          }
+        }
+
+        .cm-filter-options {
+          display: none;
+          position: absolute;
+          top: calc(100% + 0.5rem);
+          left: 0;
+          right: 0;
+          background-color: #fff;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+          max-height: 200px;
+          overflow-y: auto;
+          z-index: 10;
+          padding: 0.5rem 0;
+        }
+
+        .cm-filter-option-group {
+          margin-bottom: 0.5rem; // Add spacing between groups
+
+          &:last-child {
+            margin-bottom: 0; // Remove margin from the last group to avoid extra space at the bottom
+          }
+        }
+
+        .cm-filter-option {
+          display: block;
+          padding: 0.5rem 1rem;
+          cursor: pointer;
+
+          label {
+            font-size: 0.9rem;
+          }
+
+          &.cm-filter-option-parent {
+            font-weight: 600;
+            color: #333;
+            padding-bottom: 0.25rem;
+          }
+
+          &.cm-filter-option-child {
+            color: #333;
+            font-weight: 400;
+            padding-bottom: 0.3rem;
+          }
+
+          input[type="checkbox"] {
+            margin-right: 0.5rem;
+          }
+
+          &:hover {
+            background-color: #f5f5f5;
+          }
+        }
+
+        .cm-filter-option-separator {
+          height: 1px;
+          background-color: #ddd;
+          margin: 0.25rem 1rem;
+        }
+      }
+    }
+
+    .cm-filter-button,
+    .cm-reset-button {
+      padding: 0.5rem 1.5rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background-color 0.3s ease;
+    }
+
+    .cm-filter-button {
+      background-color: #46b450;
+      color: #fff;
+
+      &:hover {
+        background-color: #389b3e;
+      }
+    }
+
+    .cm-reset-button {
+      background-color: #dc3232;
+      color: #fff;
+
+      &:hover {
+        background-color: #b32d2e;
+      }
+    }
+  }
+
+  // Course list
+  .cm-course-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .cm-course-item {
+    border: 1px solid #eee;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    background-color: #fff;
+
+    &:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  .cm-course-image {
+    img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+    }
+  }
+
+  .cm-course-content {
+    padding: 1.5rem;
+  }
+
+  .cm-course-title {
+    margin-top: 0;
+    margin-bottom: .5rem;
+    font-size: 1.25rem;
+    color: #333;
+    border-bottom: 1px solid #ececec;
+    padding-bottom: .5rem;
+  }
+
+  .cm-course-meta {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    color: #555;
+
+    div:first-child {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    div:last-child {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .cm-availability {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      .cm-availability-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+
+      &.cm-available {
+        .cm-availability-indicator {
+          background-color: #46b450; // Grønn sirkel
+        }
+      }
+
+      &.cm-full {
+        .cm-availability-indicator {
+          background-color: #dc3232; // Rød sirkel
+        }
+      }
+    }
+  }
+
+  .cm-course-excerpt {
+    margin-bottom: 1.5rem;
+    color: #666;
+    line-height: 1.5;
+    font-size: 1rem;
+  }
+
+  .cm-course-actions {
+    display: flex;
+    gap: 1rem;
+    font-size: 1rem;
+  }
+
+  .cm-course-link,
+  .cm-more-info-link {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: 600;
+    transition: background-color 0.3s ease;
+  }
+
+  .cm-course-link {
+    background-color: #46b450;
+    color: #fff;
+
+    &:hover {
+      background-color: #389b3e;
+    }
+  }
+
+  .cm-more-info-link {
+    background-color: #6c757d; // Gray color to distinguish from the primary button
+    color: #fff;
+
+    &:hover {
+      background-color: #5a6268;
+    }
+  }
+
+  // No courses message
+  .cm-no-courses {
+    padding: 2rem;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    text-align: center;
+
+    p {
+      margin: 0;
+      font-size: 1.1rem;
+      color: #555;
+    }
+  }
+
+  .cm-no-availability {
+    padding: 1rem;
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    text-align: center;
+  }
+
+  .cm-pagination {
+    margin-top: 2rem;
+    text-align: center;
+
+    .page-numbers {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      margin: 0 0.25rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      text-decoration: none;
+      color: #333;
+
+      &.current {
+        background-color: #46b450;
+        color: #fff;
+        border-color: #46b450;
+      }
+
+      &:hover:not(.current) {
+        background-color: #f5f5f5;
+      }
+    }
+  }
+
+  // Responsive styles
+  @media (max-width: 768px) {
+    .cm-filters form {
+      flex-direction: column;
+
+      .cm-filter-group {
+        width: 100%;
+      }
+
+      .cm-filter-button,
+      .cm-reset-button {
+        width: 100%;
+        margin-top: 0.5rem;
+      }
+    }
+
+    .cm-course-list {
+      flex-direction: column;
+    }
+
+    .cm-course-actions {
+      flex-direction: column;
+      gap: 0.5rem;
+
+      .cm-course-link,
+      .cm-more-info-link {
+        width: 100%;
+        text-align: center;
+      }
+    }
+  }
+
+  @media (max-width: 480px) {
+    .cm-course-meta {
+      div:first-child {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+    }
+  }
+}

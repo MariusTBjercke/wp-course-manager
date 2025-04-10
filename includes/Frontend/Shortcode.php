@@ -17,6 +17,7 @@ class Shortcode {
     public function register(): void {
         add_shortcode('course_manager', [$this, 'renderCourseList']);
         add_shortcode('course_enrollment_form', [$this, 'renderEnrollmentForm']);
+        add_shortcode('course_manager_slider', [$this, 'renderCourseSlider']);
 
         add_filter('wp_mail_from', function ($email) {
             return get_option('admin_email') ?: 'no-reply@' . wp_parse_url(get_site_url(), PHP_URL_HOST);
@@ -580,6 +581,63 @@ class Shortcode {
 
                 <button type="submit">Gå til betaling</button>
             </form>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
+     * Render the course slider shortcode.
+     *
+     * @param array $atts Shortcode attributes.
+     * @return string
+     */
+    public function renderCourseSlider(array $atts = []): string {
+        $attributes = shortcode_atts([], $atts);
+
+        $slider_items = get_option('course_manager_slider_items', 5);
+
+        $args = [
+            'post_type' => 'course',
+            'post_status' => 'publish',
+            'posts_per_page' => $slider_items,
+            'orderby' => 'date',
+            'order' => 'DESC', // Sort newest first
+        ];
+
+        $course_query = new WP_Query($args);
+        $courses = $course_query->posts;
+
+        ob_start();
+        ?>
+        <div class="cm-course-slider">
+            <?php if (empty($courses)): ?>
+                <p>Ingen kurs å vise i slideren.</p>
+            <?php else: ?>
+                <div class="cm-slider-wrapper">
+                    <div class="cm-slider-container">
+                        <?php foreach ($courses as $course): ?>
+                            <div class="cm-slider-item">
+                                <?php if (has_post_thumbnail($course->ID)): ?>
+                                    <div class="cm-slider-image">
+                                        <?php echo get_the_post_thumbnail($course->ID, 'medium'); ?>
+                                    </div>
+                                <?php endif; ?>
+                                <h3 class="cm-slider-title">
+                                    <a href="<?php echo get_permalink($course->ID); ?>">
+                                        <?php echo esc_html($course->post_title); ?>
+                                    </a>
+                                </h3>
+                                <div class="cm-slider-excerpt">
+                                    <?php echo wp_trim_words($course->post_content, 15); ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <button class="cm-slider-prev">❮</button>
+                <button class="cm-slider-next">❯</button>
+            <?php endif; ?>
         </div>
         <?php
         return ob_get_clean();
