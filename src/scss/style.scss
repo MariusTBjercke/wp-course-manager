@@ -1,5 +1,37 @@
 // Course Manager Styles
 
-@import "components/course-manager";
-@import "components/enrollment-form";
-@import "components/course-slider";
+@use "components/course-manager" as cm;
+@use "components/enrollment-form" as ef;
+@use "components/course-slider" as cs;
+
+// Import the base styles for the plugin
+.cm-course-manager-base {
+  .cm-course-manager {
+    @extend %cm-course-manager;
+  }
+  .cm-enrollment-form {
+    @extend %cm-enrollment-form;
+  }
+  .cm-course-slider {
+    @extend %cm-course-slider;
+  }
+}
+
+/**
+ * Divi fix
+ *
+ * This is a temporary fix for the Divi theme, which adds a wrapper around the
+ * main content area. This wrapper and its styles are conflicting with the
+ * styles defined in this plugin, so we need to override them.
+ */
+.et-db #et-boc .cm-course-manager-base {
+  .cm-course-manager {
+    @extend %cm-course-manager;
+  }
+  .cm-enrollment-form {
+    @extend %cm-enrollment-form;
+  }
+  .cm-course-slider {
+    @extend %cm-course-slider;
+  }
+}
