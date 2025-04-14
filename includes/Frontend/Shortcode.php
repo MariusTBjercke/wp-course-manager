@@ -274,7 +274,7 @@ class Shortcode {
                                         <?php
                                         if ($more_info_url): ?>
                                             <a href="<?php
-                                            echo esc_url($more_info_url); ?>" class="cm-more-info-link">Merk info</a>
+                                            echo esc_url($more_info_url); ?>" class="cm-more-info-link">Mer info</a>
                                         <?php
                                         endif; ?>
                                     </div>
