@@ -93,8 +93,11 @@
         position: relative;
 
         .cm-filter-toggle {
+          display: flex;
+          align-items: center;
           width: 100%;
           padding: 0.5rem;
+          margin: 0;
           border: 1px solid #ddd;
           border-radius: 4px;
           background-color: #fff;
@@ -104,9 +107,12 @@
           font-size: 1rem;
           color: #333;
           transition: border-color 0.3s ease;
+          box-shadow: none;
 
           &:hover {
             border-color: #46b450;
+            box-shadow: none;
+            color: inherit;
           }
 
           &:after {
@@ -147,7 +153,10 @@
           cursor: pointer;
 
           label {
+            display: flex;
+            gap: 0.25rem;
             font-size: 0.9rem;
+            cursor: pointer;
           }
 
           &.cm-filter-option-parent {
@@ -182,10 +191,14 @@
     .cm-filter-button,
     .cm-reset-button {
       padding: 0.5rem 1.5rem;
+      margin: 0;
+      width: auto;
       border: none;
       border-radius: 4px;
       cursor: pointer;
       font-weight: 600;
+      font-size: inherit;
+      box-shadow: none;
       transition: background-color 0.3s ease;
     }
 
@@ -374,6 +387,7 @@
       border-radius: 4px;
       text-decoration: none;
       color: #333;
+      font-size: 1.5rem;
 
       &.current {
         background-color: #46b450;
