@@ -322,33 +322,33 @@
     display: flex;
     gap: 1rem;
     font-size: 1rem;
-  }
 
-  .cm-course-link,
-  .cm-more-info-link {
-    display: inline-block;
-    padding: 0.5rem 1rem;
-    text-decoration: none;
-    border-radius: 4px;
-    font-weight: 600;
-    transition: background-color 0.3s ease;
-  }
-
-  .cm-course-link {
-    background-color: #46b450;
-    color: #fff;
-
-    &:hover {
-      background-color: #389b3e;
+    .cm-course-link,
+    .cm-more-info-link {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: 600;
+      transition: background-color 0.3s ease;
     }
-  }
 
-  .cm-more-info-link {
-    background-color: #6c757d; // Gray color to distinguish from the primary button
-    color: #fff;
+    .cm-course-link {
+      background-color: #46b450;
+      color: #fff;
 
-    &:hover {
-      background-color: #5a6268;
+      &:hover {
+        background-color: #389b3e;
+      }
+    }
+
+    .cm-more-info-link {
+      background-color: #6c757d;
+      color: #fff;
+
+      &:hover {
+        background-color: #5a6268;
+      }
     }
   }
 
@@ -434,6 +434,20 @@
   }
 
   @media (max-width: 480px) {
+    .cm-filters {
+      form {
+        align-items: flex-start;
+      }
+
+      .cm-search-group {
+        min-width: 100%;
+      }
+
+      .cm-filter-group {
+        min-width: 100%;
+      }
+    }
+
     .cm-course-meta {
       div:first-child {
         flex-direction: column;

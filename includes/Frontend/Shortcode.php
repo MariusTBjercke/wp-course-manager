@@ -614,7 +614,7 @@ class Shortcode {
 
                         <div class="cm-form-field">
                             <label for="cm_buyer_comments">Kommentarer/spørsmål</label>
-                            <textarea name="cm_buyer_comments" id="cm_buyer_comments"
+                            <textarea name="cm_buyer_comments" id="cm_buyer_comments" class="cm-comments-field"
                                       placeholder="Eventuelle kommentarer eller spørsmål"></textarea>
                         </div>
                     </fieldset>
