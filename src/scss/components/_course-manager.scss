@@ -276,7 +276,7 @@
     justify-content: space-between;
     gap: 1rem;
     margin-bottom: 1rem;
-    font-size: 0.9rem;
+    font-size: 1rem;
     color: #555;
 
     div:first-child {
@@ -322,7 +322,7 @@
     margin-bottom: 1.5rem;
     color: #666;
     line-height: 1.5;
-    font-size: 1rem;
+    font-size: 1.25rem;
   }
 
   .cm-course-actions {
@@ -396,7 +396,7 @@
       border-radius: 4px;
       text-decoration: none;
       color: #333;
-      font-size: 1.5rem;
+      font-size: 1.25rem;
 
       &.current {
         background-color: #46b450;
@@ -436,6 +436,7 @@
       .cm-course-link,
       .cm-more-info-link {
         width: 100%;
+        height: 3rem;
         text-align: center;
       }
     }
