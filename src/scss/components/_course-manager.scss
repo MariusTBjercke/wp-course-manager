@@ -1,7 +1,6 @@
 // Course Manager Styles
 
 %cm-course-manager {
-  margin: 2rem 0;
   font-family: inherit;
 
   h1 {
@@ -38,17 +37,24 @@
         color: #333;
       }
 
-      // Override form-control styles from bootstrap
-      .form-control {
-        all: unset;
+      input[type="text"], input[type="email"], input[type="tel"], input[type="date"], button {
+        height: 3rem;
+        padding: 0.5rem;
+        font-size: 1rem;
+      }
+
+      button {
+        display: flex;
+        align-items: center;
       }
 
       input[type="text"] {
         width: 100%;
-        padding: 0.5rem;
+        margin: 0;
         border: 1px solid #ddd;
         border-radius: 4px;
         background-color: #fff;
+        background-image: none;
         box-sizing: border-box;
         transition: border-color 0.3s ease;
 
@@ -172,7 +178,7 @@
           }
 
           input[type="checkbox"] {
-            margin-right: 0.5rem;
+            margin: 0 .5rem 0 0;
           }
 
           &:hover {
@@ -190,9 +196,10 @@
 
     .cm-filter-button,
     .cm-reset-button {
-      padding: 0.5rem 1.5rem;
       margin: 0;
+      padding: 0.5rem 1.5rem;
       width: auto;
+      height: 3rem;
       border: none;
       border-radius: 4px;
       cursor: pointer;
@@ -325,8 +332,10 @@
 
     .cm-course-link,
     .cm-more-info-link {
-      display: inline-block;
-      padding: 0.5rem 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.5rem 1.5rem;
       text-decoration: none;
       border-radius: 4px;
       font-weight: 600;
@@ -413,7 +422,6 @@
       .cm-filter-button,
       .cm-reset-button {
         width: 100%;
-        margin-top: 0.5rem;
       }
     }
 
