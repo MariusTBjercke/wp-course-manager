@@ -75,26 +75,35 @@ class Shortcode {
         // Add date filter based on start and end date
         if ($startDate || $endDate) {
             $meta_query = [];
-            if ($endDate) {
-                $meta_query[] = [
-                    'key' => 'startdato',
-                    'value' => $endDate,
-                    'compare' => '<=',
-                    'type' => 'DATE',
-                ];
-            }
             if ($startDate) {
                 $meta_query[] = [
-                    'key' => 'sluttdato',
+                    'key' => 'startdato',
                     'value' => $startDate,
                     'compare' => '>=',
                     'type' => 'DATE',
+                ];
+            }
+            if ($endDate) {
+                $meta_query[] = [
                     'relation' => 'OR',
                     [
-                        'key' => 'startdato',
-                        'value' => $startDate,
-                        'compare' => '>=',
+                        'key' => 'sluttdato',
+                        'value' => $endDate,
+                        'compare' => '<=',
                         'type' => 'DATE',
+                    ],
+                    [
+                        'relation' => 'AND',
+                        [
+                            'key' => 'sluttdato',
+                            'compare' => 'NOT EXISTS',
+                        ],
+                        [
+                            'key' => 'startdato',
+                            'value' => $endDate,
+                            'compare' => '<=',
+                            'type' => 'DATE',
+                        ],
                     ],
                 ];
             }
