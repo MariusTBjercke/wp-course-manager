@@ -68,24 +68,40 @@ class Shortcode {
             's' => $searchTerm,
             'posts_per_page' => $posts_per_page,
             'paged' => $paged,
-            'tax_query' => []
+            'tax_query' => [],
+            'meta_query' => [],
         ];
 
-        // Add start date filter
+        // Add date filter based on start and end date
         if ($startDate || $endDate) {
-            $meta_query = [
-                'key' => 'startdato',
-                'type' => 'DATE',
-            ];
-            if ($startDate) {
-                $meta_query['compare'] = '>=';
-                $meta_query['value'] = $startDate;
-            }
+            $meta_query = [];
             if ($endDate) {
-                $meta_query['compare'] = $startDate ? 'BETWEEN' : '<=';
-                $meta_query['value'] = $startDate ? [$startDate, $endDate] : $endDate;
+                $meta_query[] = [
+                    'key' => 'startdato',
+                    'value' => $endDate,
+                    'compare' => '<=',
+                    'type' => 'DATE',
+                ];
             }
-            $args['meta_query'][] = $meta_query;
+            if ($startDate) {
+                $meta_query[] = [
+                    'key' => 'sluttdato',
+                    'value' => $startDate,
+                    'compare' => '>=',
+                    'type' => 'DATE',
+                    'relation' => 'OR',
+                    [
+                        'key' => 'startdato',
+                        'value' => $startDate,
+                        'compare' => '>=',
+                        'type' => 'DATE',
+                    ],
+                ];
+            }
+            if (!empty($meta_query)) {
+                $meta_query['relation'] = 'AND';
+                $args['meta_query'] = $meta_query;
+            }
         }
 
         // Build tax_query for multiple selections
@@ -142,12 +158,12 @@ class Shortcode {
                                        echo esc_attr($searchTerm); ?>"/>
                             </div>
                             <div class="cm-filter-group">
-                                <label for="start_date">Fra dato:</label>
+                                <label for="start_date">Fra:</label>
                                 <input type="date" id="start_date" name="start_date" value="<?php
                                 echo esc_attr($startDate); ?>"/>
                             </div>
                             <div class="cm-filter-group">
-                                <label for="end_date">Til dato:</label>
+                                <label for="end_date">Til:</label>
                                 <input type="date" id="end_date" name="end_date" value="<?php
                                 echo esc_attr($endDate); ?>"/>
                             </div>
@@ -202,6 +218,10 @@ class Shortcode {
                             $startDate = $startDate ? DateTime::createFromFormat('Y-m-d', $startDate)->format(
                                 'd.m.Y'
                             ) : '';
+                            $endDate = get_post_meta($course->ID, 'sluttdato', true);
+                            $endDate = $endDate ? DateTime::createFromFormat('Y-m-d', $endDate)->format('d.m.Y') : '';
+                            $startTime = get_post_meta($course->ID, 'starttid', true);
+                            $endTime = get_post_meta($course->ID, 'sluttid', true);
                             $pricePerParticipant = get_post_meta($course->ID, '_course_price', true);
                             $maxParticipants = get_post_meta($course->ID, '_course_max_participants', true);
                             $more_info_page_id = get_post_meta($course->ID, '_course_more_info_page', true);
@@ -250,12 +270,30 @@ class Shortcode {
                                             <?php
                                             endif; ?>
                                             <?php
+                                            if ($endDate): ?>
+                                                <span><strong>Sluttdato:</strong> <?php
+                                                    echo esc_html($endDate); ?></span>
+                                            <?php
+                                            endif; ?>
+                                            <?php
+                                            if ($startTime || $endTime): ?>
+                                                <span><strong>Tidspunkt:</strong> <?php
+                                                    if ($startTime && $endTime) {
+                                                        echo esc_html($startTime . ' - ' . $endTime);
+                                                    } elseif ($startTime) {
+                                                        echo esc_html($startTime);
+                                                    } else {
+                                                        echo esc_html('Slutt: ' . $endTime);
+                                                    }
+                                                    ?></span>
+                                            <?php
+                                            endif; ?>
+                                            <?php
                                             foreach ($courseTaxonomyData as $typeName => $terms): ?>
                                                 <span class="cm-course-taxonomy">
-                                            <strong><?php
-                                                echo esc_html($typeName); ?>:</strong> <?php
+                                                    <strong><?php echo esc_html($typeName); ?>:</strong> <?php
                                                     echo esc_html(implode(', ', $terms)); ?>
-                                        </span>
+                                                </span>
                                             <?php
                                             endforeach; ?>
                                             <?php
@@ -266,12 +304,12 @@ class Shortcode {
                                             endif; ?>
                                         </div>
                                         <div>
-                                    <span class="cm-availability <?php
-                                    echo $isAvailable ? 'cm-available' : 'cm-full'; ?>">
-                                        <span class="cm-availability-indicator"></span>
-                                        <?php
-                                        echo $isAvailable ? 'Ledige plasser' : 'Fullt'; ?>
-                                    </span>
+                                            <span class="cm-availability <?php
+                                            echo $isAvailable ? 'cm-available' : 'cm-full'; ?>">
+                                                <span class="cm-availability-indicator"></span>
+                                                <?php
+                                                echo $isAvailable ? 'Ledige plasser' : 'Fullt'; ?>
+                                            </span>
                                         </div>
                                     </div>
                                     <div class="cm-course-excerpt">
@@ -318,13 +356,14 @@ class Shortcode {
                             'format' => '?paged=%#%',
                             'current' => max(1, $paged),
                             'total' => $total_pages,
-                            'prev_text' => __('&laquo; Forrige'),
-                            'next_text' => __('Neste &raquo;'),
+                            'prev_text' => __('« Forrige'),
+                            'next_text' => __('Neste »'),
                             'add_args' => $pagination_args,
                         ]);
                         ?>
                     </div>
-                <?php endif; ?>
+                <?php
+                endif; ?>
             </div>
         </div>
         <?php

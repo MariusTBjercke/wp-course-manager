@@ -54,7 +54,7 @@ class Course {
         // Dynamically add taxonomies to the course post type
         add_filter('register_post_type_args', [$this, 'addDynamicTaxonomies'], 10, 2);
 
-        // Register meta boxes for custom email message, price, and more info page
+        // Register meta boxes for custom email message, price, dates, times, and more info page
         add_action('add_meta_boxes', [$this, 'addMetaBoxes']);
         add_action('save_post', [$this, 'saveMetaBoxData']);
     }
@@ -90,9 +90,18 @@ class Course {
         );
 
         add_meta_box(
-            'course_start_date',
-            'Startdato',
-            [$this, 'renderStartDateMetaBox'],
+            'course_dates',
+            'Datoer',
+            [$this, 'renderDatesMetaBox'],
+            'course',
+            'normal',
+            'default'
+        );
+
+        add_meta_box(
+            'course_times',
+            'Tider',
+            [$this, 'renderTimesMetaBox'],
             'course',
             'normal',
             'default'
@@ -151,19 +160,46 @@ class Course {
     }
 
     /**
-     * Render the start date meta box.
+     * Render the dates meta box.
      *
      * @param WP_Post $post The current post object.
      */
-    public function renderStartDateMetaBox(WP_Post $post): void {
+    public function renderDatesMetaBox(WP_Post $post): void {
         $start_date = get_post_meta($post->ID, 'startdato', true);
-        wp_nonce_field('course_start_date_nonce', 'course_start_date_nonce');
+        $end_date = get_post_meta($post->ID, 'sluttdato', true);
+        wp_nonce_field('course_dates_nonce', 'course_dates_nonce');
         ?>
         <p>
             <label for="course_start_date">Startdato for kurset:</label><br>
             <input type="date" name="course_start_date" id="course_start_date" value="<?php echo esc_attr($start_date); ?>">
         </p>
-        <p class="description">Angi startdatoen for kurset.</p>
+        <p>
+            <label for="course_end_date">Sluttdato for kurset:</label><br>
+            <input type="date" name="course_end_date" id="course_end_date" value="<?php echo esc_attr($end_date); ?>">
+        </p>
+        <p class="description">Angi start- og sluttdato for kurset. Sluttdato er valgfri for endagskurs.</p>
+        <?php
+    }
+
+    /**
+     * Render the times meta box.
+     *
+     * @param WP_Post $post The current post object.
+     */
+    public function renderTimesMetaBox(WP_Post $post): void {
+        $start_time = get_post_meta($post->ID, 'starttid', true);
+        $end_time = get_post_meta($post->ID, 'sluttid', true);
+        wp_nonce_field('course_times_nonce', 'course_times_nonce');
+        ?>
+        <p>
+            <label for="course_start_time">Starttid for kurset:</label><br>
+            <input type="time" name="course_start_time" id="course_start_time" value="<?php echo esc_attr($start_time); ?>">
+        </p>
+        <p>
+            <label for="course_end_time">Slutttid for kurset:</label><br>
+            <input type="time" name="course_end_time" id="course_end_time" value="<?php echo esc_attr($end_time); ?>">
+        </p>
+        <p class="description">Angi start- og slutttid for kurset (valgfritt).</p>
         <?php
     }
 
@@ -245,8 +281,8 @@ class Course {
             update_post_meta($post_id, '_course_custom_email_message', sanitize_textarea_field($_POST['course_custom_email_message']));
         }
 
-        // Save start date
-        if (!isset($_POST['course_start_date_nonce']) || !wp_verify_nonce($_POST['course_start_date_nonce'], 'course_start_date_nonce')) {
+        // Save dates
+        if (!isset($_POST['course_dates_nonce']) || !wp_verify_nonce($_POST['course_dates_nonce'], 'course_dates_nonce')) {
             return;
         }
 
@@ -256,6 +292,38 @@ class Course {
                 update_post_meta($post_id, 'startdato', $start_date);
             } else {
                 delete_post_meta($post_id, 'startdato');
+            }
+        }
+
+        if (isset($_POST['course_end_date'])) {
+            $end_date = sanitize_text_field($_POST['course_end_date']);
+            if ($end_date && DateTime::createFromFormat('Y-m-d', $end_date) !== false) {
+                update_post_meta($post_id, 'sluttdato', $end_date);
+            } else {
+                delete_post_meta($post_id, 'sluttdato');
+            }
+        }
+
+        // Save times
+        if (!isset($_POST['course_times_nonce']) || !wp_verify_nonce($_POST['course_times_nonce'], 'course_times_nonce')) {
+            return;
+        }
+
+        if (isset($_POST['course_start_time'])) {
+            $start_time = sanitize_text_field($_POST['course_start_time']);
+            if ($start_time && preg_match('/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/', $start_time)) {
+                update_post_meta($post_id, 'starttid', $start_time);
+            } else {
+                delete_post_meta($post_id, 'starttid');
+            }
+        }
+
+        if (isset($_POST['course_end_time'])) {
+            $end_time = sanitize_text_field($_POST['course_end_time']);
+            if ($end_time && preg_match('/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/', $end_time)) {
+                update_post_meta($post_id, 'sluttid', $end_time);
+            } else {
+                delete_post_meta($post_id, 'sluttid');
             }
         }
 
