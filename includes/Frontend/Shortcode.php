@@ -42,10 +42,10 @@ class Shortcode {
         ], $atts);
 
         $searchTerm = isset($_GET['course_search']) ? sanitize_text_field($_GET['course_search']) : '';
-        $startDate = !empty($_GET['start_date']) && DateTime::createFromFormat('Y-m-d', $_GET['start_date']) !== false
+        $filterStartDate = !empty($_GET['start_date']) && DateTime::createFromFormat('Y-m-d', $_GET['start_date']) !== false
             ? sanitize_text_field($_GET['start_date'])
             : '';
-        $endDate = !empty($_GET['end_date']) && DateTime::createFromFormat('Y-m-d', $_GET['end_date']) !== false
+        $filterEndDate = !empty($_GET['end_date']) && DateTime::createFromFormat('Y-m-d', $_GET['end_date']) !== false
             ? sanitize_text_field($_GET['end_date'])
             : '';
 
@@ -73,22 +73,22 @@ class Shortcode {
         ];
 
         // Add date filter based on start and end date
-        if ($startDate || $endDate) {
+        if ($filterStartDate || $filterEndDate) {
             $meta_query = [];
-            if ($startDate) {
+            if ($filterStartDate) {
                 $meta_query[] = [
                     'key' => 'startdato',
-                    'value' => $startDate,
+                    'value' => $filterStartDate,
                     'compare' => '>=',
                     'type' => 'DATE',
                 ];
             }
-            if ($endDate) {
+            if ($filterEndDate) {
                 $meta_query[] = [
                     'relation' => 'OR',
                     [
                         'key' => 'sluttdato',
-                        'value' => $endDate,
+                        'value' => $filterEndDate,
                         'compare' => '<=',
                         'type' => 'DATE',
                     ],
@@ -100,7 +100,7 @@ class Shortcode {
                         ],
                         [
                             'key' => 'startdato',
-                            'value' => $endDate,
+                            'value' => $filterEndDate,
                             'compare' => '<=',
                             'type' => 'DATE',
                         ],
@@ -158,52 +158,38 @@ class Shortcode {
                 <?php
                 if ($attributes['show_filters'] === 'yes'): ?>
                     <div class="cm-filters">
-                        <form method="get" action="<?php
-                        echo esc_url(get_permalink()); ?>">
+                        <form method="get" action="<?php echo esc_url(get_permalink()); ?>">
                             <div class="cm-filter-group cm-search-group">
                                 <label for="course_search">Søk:</label>
                                 <input type="text" id="course_search" name="course_search" placeholder="Søk etter kurs"
-                                       value="<?php
-                                       echo esc_attr($searchTerm); ?>"/>
+                                       value="<?php echo esc_attr($searchTerm); ?>"/>
                             </div>
                             <div class="cm-filter-group">
                                 <label for="start_date">Fra:</label>
-                                <input type="date" id="start_date" name="start_date" value="<?php
-                                echo esc_attr($startDate); ?>"/>
+                                <input type="date" id="start_date" name="start_date" value="<?php echo esc_attr($filterStartDate); ?>"/>
                             </div>
                             <div class="cm-filter-group">
                                 <label for="end_date">Til:</label>
-                                <input type="date" id="end_date" name="end_date" value="<?php
-                                echo esc_attr($endDate); ?>"/>
+                                <input type="date" id="end_date" name="end_date" value="<?php echo esc_attr($filterEndDate); ?>"/>
                             </div>
-                            <?php
-                            foreach ($taxonomies as $slug => $name): ?>
+                            <?php foreach ($taxonomies as $slug => $name): ?>
                                 <div class="cm-filter-group cm-taxonomy-filter">
-                                    <label><?php
-                                        echo esc_html($name); ?>:</label>
+                                    <label><?php echo esc_html($name); ?>:</label>
                                     <div class="cm-filter-dropdown">
                                         <button type="button" class="cm-filter-toggle"><?php
-                                            echo esc_html($name); ?> (<?php
-                                            echo count(array_filter($selectedTaxonomies[$slug])) ?: 'Alle'; ?> valgt)
+                                            echo esc_html($name); ?> (<?php echo count(array_filter($selectedTaxonomies[$slug])) ?: 'Alle'; ?> valgt)
                                         </button>
                                         <div class="cm-filter-options">
-                                            <?php
-                                            $this->renderTaxonomyTerms(
-                                                $taxonomyTerms[$slug],
-                                                $slug,
-                                                $selectedTaxonomies[$slug]
-                                            ); ?>
+                                            <?php $this->renderTaxonomyTerms($taxonomyTerms[$slug], $slug, $selectedTaxonomies[$slug]); ?>
                                         </div>
                                     </div>
                                 </div>
-                            <?php
-                            endforeach; ?>
+                            <?php endforeach; ?>
                             <button type="submit" class="cm-filter-button">Filtrer</button>
                             <button type="button" class="cm-reset-button">Nullstill</button>
                         </form>
                     </div>
-                <?php
-                endif; ?>
+                <?php endif; ?>
 
                 <?php
                 if (empty($courses)): ?>
@@ -224,9 +210,7 @@ class Shortcode {
                                 }
                             }
                             $startDate = get_post_meta($course->ID, 'startdato', true);
-                            $startDate = $startDate ? DateTime::createFromFormat('Y-m-d', $startDate)->format(
-                                'd.m.Y'
-                            ) : '';
+                            $startDate = $startDate ? DateTime::createFromFormat('Y-m-d', $startDate)->format('d.m.Y') : '';
                             $endDate = get_post_meta($course->ID, 'sluttdato', true);
                             $endDate = $endDate ? DateTime::createFromFormat('Y-m-d', $endDate)->format('d.m.Y') : '';
                             $startTime = get_post_meta($course->ID, 'starttid', true);
@@ -348,11 +332,11 @@ class Shortcode {
                         if (!empty($searchTerm)) {
                             $pagination_args['course_search'] = $searchTerm;
                         }
-                        if (!empty($startDate)) {
-                            $pagination_args['start_date'] = $startDate;
+                        if (!empty($filterStartDate)) {
+                            $pagination_args['start_date'] = $filterStartDate;
                         }
-                        if (!empty($endDate)) {
-                            $pagination_args['end_date'] = $endDate;
+                        if (!empty($filterEndDate)) {
+                            $pagination_args['end_date'] = $filterEndDate;
                         }
                         foreach ($selectedTaxonomies as $taxonomy => $terms) {
                             if (!empty($terms) && !in_array('', $terms)) {
