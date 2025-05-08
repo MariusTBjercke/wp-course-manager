@@ -42,8 +42,13 @@ class Shortcode {
         ], $atts);
 
         $searchTerm = isset($_GET['course_search']) ? sanitize_text_field($_GET['course_search']) : '';
-        $startDate = isset($_GET['start_date']) ? sanitize_text_field($_GET['start_date']) : '';
-        $endDate = isset($_GET['end_date']) ? sanitize_text_field($_GET['end_date']) : '';
+        $startDate = !empty($_GET['start_date']) && DateTime::createFromFormat('Y-m-d', $_GET['start_date']) !== false
+            ? sanitize_text_field($_GET['start_date'])
+            : '';
+        $endDate = !empty($_GET['end_date']) && DateTime::createFromFormat('Y-m-d', $_GET['end_date']) !== false
+            ? sanitize_text_field($_GET['end_date'])
+            : '';
+
         $selectedTaxonomies = [];
         $taxonomies = get_option('course_manager_taxonomies', []);
 
@@ -53,10 +58,8 @@ class Shortcode {
             $selectedTaxonomies[$slug] = array_map('sanitize_text_field', $selectedTaxonomies[$slug]);
         }
 
-        // Get current page from URL (default to 1 if not set)
-        $paged = (get_query_var('paged')) ? get_query_var('paged') : (isset($_GET['paged']) ? absint(
-            $_GET['paged']
-        ) : 1);
+        // Get the current page from URL (default to 1 if not set)
+        $paged = (get_query_var('paged')) ?: (isset($_GET['paged']) ? absint($_GET['paged']) : 1);
         $posts_per_page = get_option('course_manager_items_per_page', 10);
 
         $args = [
@@ -103,7 +106,14 @@ class Shortcode {
 
         $course_query = new WP_Query($args);
         $courses = $course_query->posts;
-        $total_pages = $course_query->max_num_pages;
+
+        if ($course_query->found_posts <= ($paged * $posts_per_page)) {
+            $total_pages = $paged;
+        } elseif ($course_query->found_posts > 0) {
+            $total_pages = ceil($course_query->found_posts / $posts_per_page);
+        } else {
+            $total_pages = 1;
+        }
 
         $taxonomyTerms = [];
         foreach ($taxonomies as $slug => $name) {
@@ -173,7 +183,7 @@ class Shortcode {
                 <?php
                 if (empty($courses)): ?>
                     <div class="cm-no-courses">
-                        <p>Ingen kurs funnet. Vennligst prøv andre filtre.</p>
+                        <p>Ingen kurs funnet.</p>
                     </div>
                 <?php
                 else: ?>
@@ -286,6 +296,23 @@ class Shortcode {
 
                     <div class="cm-pagination">
                         <?php
+                        // Build the arguments manually for more control
+                        $pagination_args = [];
+                        if (!empty($searchTerm)) {
+                            $pagination_args['course_search'] = $searchTerm;
+                        }
+                        if (!empty($startDate)) {
+                            $pagination_args['start_date'] = $startDate;
+                        }
+                        if (!empty($endDate)) {
+                            $pagination_args['end_date'] = $endDate;
+                        }
+                        foreach ($selectedTaxonomies as $taxonomy => $terms) {
+                            if (!empty($terms) && !in_array('', $terms)) {
+                                $pagination_args[$taxonomy] = $terms;
+                            }
+                        }
+
                         echo paginate_links([
                             'base' => add_query_arg('paged', '%#%'),
                             'format' => '?paged=%#%',
@@ -293,18 +320,11 @@ class Shortcode {
                             'total' => $total_pages,
                             'prev_text' => __('&laquo; Forrige'),
                             'next_text' => __('Neste &raquo;'),
-                            'add_args' => array_filter(
-                                [
-                                    'course_search' => $searchTerm,
-                                    'start_date' => $startDate,
-                                    'end_date' => $endDate,
-                                ] + $selectedTaxonomies
-                            ),
+                            'add_args' => $pagination_args,
                         ]);
                         ?>
                     </div>
-                <?php
-                endif; ?>
+                <?php endif; ?>
             </div>
         </div>
         <?php
