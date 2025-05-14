@@ -355,8 +355,10 @@ class Shortcode {
 
                                         <?php
                                         if ($moreInfoUrl): ?>
-                                            <a href="<?php
-                                            echo esc_url($moreInfoUrl); ?>" class="cm-more-info-link">Mer info</a>
+                                        <a
+                                                href="<?php echo esc_url($moreInfoUrl); ?>"
+                                                class="cm-more-info-link"
+                                                target="_blank">Mer info</a>
                                         <?php
                                         endif; ?>
                                     </div>
