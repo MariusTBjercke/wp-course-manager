@@ -186,9 +186,9 @@ class AdminSettings {
             'general' => 'Generelt',
             'email' => 'E-post'
         ];
-        $active_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'general';
-        if (!array_key_exists($active_tab, $tabs)) {
-            $active_tab = 'general';
+        $activeTab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'general';
+        if (!array_key_exists($activeTab, $tabs)) {
+            $activeTab = 'general';
         }
         ?>
         <div class="wrap">
@@ -203,7 +203,7 @@ class AdminSettings {
             <h2 class="nav-tab-wrapper">
                 <?php foreach ($tabs as $tab_id => $tab_name): ?>
                     <a href="?post_type=course&page=course_manager_settings&tab=<?php echo esc_attr($tab_id); ?>"
-                       class="nav-tab <?php echo $active_tab === $tab_id ? 'nav-tab-active' : ''; ?>">
+                       class="nav-tab <?php echo $activeTab === $tab_id ? 'nav-tab-active' : ''; ?>">
                         <?php echo esc_html($tab_name); ?>
                     </a>
                 <?php endforeach; ?>
@@ -212,7 +212,7 @@ class AdminSettings {
             <form method="post" action="options.php">
                 <?php
                 settings_fields('course_manager_settings');
-                do_settings_sections('course_manager_settings_' . $active_tab);
+                do_settings_sections('course_manager_settings_' . $activeTab);
                 submit_button();
                 ?>
             </form>
