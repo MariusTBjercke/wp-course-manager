@@ -1,6 +1,3 @@
-// Course Manager Admin Script
-
-
 import CourseDateManager from "./CourseDateManager";
 
 document.addEventListener('DOMContentLoaded', () => {

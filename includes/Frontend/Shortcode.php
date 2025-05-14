@@ -69,29 +69,12 @@ class Shortcode {
             'post_status' => 'publish',
             's' => $searchTerm,
             'posts_per_page' => -1, // Get all courses initially to process course dates
-            'tax_query' => [],
         ];
-
-        // Build tax_query for multiple selections
-        foreach ($selectedTaxonomies as $taxonomy => $terms) {
-            if (!empty($terms) && !in_array('', $terms)) {
-                $args['tax_query'][] = [
-                    'taxonomy' => $taxonomy,
-                    'field' => 'slug',
-                    'terms' => $terms,
-                    'operator' => 'IN',
-                ];
-            }
-        }
-
-        if (count($args['tax_query']) > 1) {
-            $args['tax_query']['relation'] = 'AND';
-        }
 
         $course_query = new WP_Query($args);
         $allCourses = $course_query->posts;
 
-        // Process courses to get a flat list of course dates that match date filters and are available
+        // Process courses to get a flat list of course dates that match date and taxonomy filters and are available
         $filterableCourseDates = [];
         $now = new DateTime();
 
@@ -101,9 +84,10 @@ class Shortcode {
                 foreach ($courseDates as $courseDateIndex => $courseDate) {
                     $startDate = $courseDate['start_date'] ?? '';
                     $endDate = $courseDate['end_date'] ?? '';
+                    $courseDateTaxonomies = $courseDate['taxonomies'] ?? [];
 
                     $courseDateStartDateObj = $startDate ? DateTime::createFromFormat('Y-m-d', $startDate) : null;
-                    $courseDateEndDateObj = $endDate ? DateTime::createFromFormat('Y-m-d', $endDate) : $courseDateStartDateObj; // Use start date as end date if end date is missing
+                    $courseDateEndDateObj = $endDate ? DateTime::createFromFormat('Y-m-d', $endDate) : $courseDateStartDateObj;
 
                     // Filter by date range
                     $dateMatch = true;
@@ -119,8 +103,44 @@ class Shortcode {
                         $dateMatch = false; // Exclude past course dates
                     }
 
+                    // Filter by taxonomy
+                    $taxonomyMatch = true;
+                    foreach ($selectedTaxonomies as $taxSlug => $selectedTerms) {
+                        if (!empty($selectedTerms) && !in_array('', $selectedTerms)) {
+                            // Determine which terms to check against: date-specific or course-specific
+                            $termsToCheck = [];
+                            if (!empty($courseDateTaxonomies[$taxSlug])) {
+                                // Use date-specific terms if available
+                                $termsToCheck = $courseDateTaxonomies[$taxSlug];
+                            } else {
+                                // Otherwise, use course-specific terms
+                                $courseTerms = get_the_terms($course->ID, $taxSlug);
+                                if (!is_wp_error($courseTerms) && !empty($courseTerms)) {
+                                    $termsToCheck = wp_list_pluck($courseTerms, 'slug');
+                                }
+                            }
 
-                    if ($dateMatch) {
+                            // Check if any of the selected terms match the terms for this date/course
+                            $matchFound = false;
+                            if (!empty($termsToCheck)) { // Ensure there are terms to check against
+                                foreach ($selectedTerms as $selectedTerm) {
+                                    if (in_array($selectedTerm, $termsToCheck)) {
+                                        $matchFound = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+
+                            if (!$matchFound) {
+                                $taxonomyMatch = false;
+                                break; // No need to check other taxonomies for this date
+                            }
+                        }
+                    }
+
+
+                    if ($dateMatch && $taxonomyMatch) {
                         // Fetch current participants for this specific course date
                         $enrollmentArgs = [
                             'post_type' => 'course_enrollment',
@@ -142,9 +162,9 @@ class Shortcode {
                         $enrollments = get_posts($enrollmentArgs);
                         $currentParticipants = 0;
                         foreach ($enrollments as $enrollment) {
-                            $participants = get_post_meta($enrollment->ID, 'cm_participants', true);
-                            if (is_array($participants)) {
-                                $currentParticipants += count($participants);
+                            $participantsMeta = get_post_meta($enrollment->ID, 'cm_participants', true);
+                            if (is_array($participantsMeta)) {
+                                $currentParticipants += count($participantsMeta);
                             }
                         }
 
@@ -261,13 +281,41 @@ class Shortcode {
                             $currentParticipants = $courseDateData['current_participants'];
                             $capacityLimit = $courseDateData['capacity_limit'];
 
-                            $courseTaxonomyData = [];
+                            $displayedTaxonomyData = [];
+                            $courseDateTaxonomies = $courseDate['taxonomies'] ?? []; // Get date-specific taxonomies
+
                             foreach ($taxonomies as $slug => $name) {
-                                $terms = get_the_terms($course->ID, $slug);
-                                if ($terms && !is_wp_error($terms)) {
-                                    $courseTaxonomyData[$name] = wp_list_pluck($terms, 'name');
+                                $termsToDisplay = [];
+                                if (!empty($courseDateTaxonomies[$slug])) {
+                                    // Use date-specific terms if available
+                                    $termsToDisplay = $courseDateTaxonomies[$slug];
+                                } else {
+                                    // Otherwise, use course-specific terms
+                                    $courseTerms = get_the_terms($course->ID, $slug);
+                                    if (!is_wp_error($courseTerms) && !empty($courseTerms)) {
+                                        $termsToDisplay = wp_list_pluck($courseTerms, 'slug');
+                                    }
+                                }
+
+                                // Fetch term objects to get their names
+                                $termNamesToDisplay = [];
+                                if (!empty($termsToDisplay)) {
+                                    $termObjects = get_terms([
+                                        'taxonomy' => $slug,
+                                        'slug' => $termsToDisplay,
+                                        'hide_empty' => false,
+                                    ]);
+                                    if (!is_wp_error($termObjects) && !empty($termObjects)) {
+                                        $termNamesToDisplay = wp_list_pluck($termObjects, 'name');
+                                    }
+                                }
+
+
+                                if (!empty($termNamesToDisplay)) {
+                                    $displayedTaxonomyData[$name] = $termNamesToDisplay;
                                 }
                             }
+
                             $pricePerParticipant = get_post_meta($course->ID, '_course_price', true);
                             $moreInfoPageId = get_post_meta($course->ID, '_course_more_info_page', true);
                             $moreInfoUrl = $moreInfoPageId ? get_permalink($moreInfoPageId) : '';
@@ -319,7 +367,7 @@ class Shortcode {
                                             <?php
                                             endif; ?>
                                             <?php
-                                            foreach ($courseTaxonomyData as $typeName => $terms): ?>
+                                            foreach ($displayedTaxonomyData as $typeName => $terms): ?>
                                                 <span class="cm-course-taxonomy">
                                                     <strong><?php echo esc_html($typeName); ?>:</strong> <?php
                                                     echo esc_html(implode(', ', $terms)); ?>
@@ -351,14 +399,14 @@ class Shortcode {
                                             <a href="<?php echo add_query_arg('selected_course_date', $courseDateIndex, get_permalink($course->ID)); ?>" class="cm-course-link">Meld deg på</a>
                                         <?php else: ?>
                                             <span class="cm-full-button">Fullt</span>
-                                        <?php endif; ?>
-
+                                        <?php
+                                        endif; ?>
                                         <?php
                                         if ($moreInfoUrl): ?>
-                                        <a
-                                                href="<?php echo esc_url($moreInfoUrl); ?>"
-                                                class="cm-more-info-link"
-                                                target="_blank">Mer info</a>
+                                            <a
+                                                    href="<?php echo esc_url($moreInfoUrl); ?>"
+                                                    class="cm-more-info-link"
+                                                    target="_blank">Mer info</a>
                                         <?php
                                         endif; ?>
                                     </div>
@@ -507,6 +555,7 @@ class Shortcode {
         $courseDates = get_post_meta($courseId, '_course_dates', true);
         $submissionMessage = '';
         $pricePerParticipant = (int)get_post_meta($courseId, '_course_price', true);
+        $taxonomies = get_option('course_manager_taxonomies', []); // Get defined taxonomies
 
 
         // Check if there are any course dates available
@@ -565,7 +614,9 @@ class Shortcode {
                     $isAvailable = true;
                     $capacityLimit = $courseDateMaxParticipants !== '' ? (int)$courseDateMaxParticipants : null;
 
-                    if ($capacityLimit !== null && ($currentParticipants + count($participants)) > $capacityLimit) {
+                    $participantCount = isset($_POST['cm_participant_count']) ? (int)$_POST['cm_participant_count'] : 0;
+
+                    if ($capacityLimit !== null && ($currentParticipants + $participantCount) > $capacityLimit) {
                         $submissionMessage = '<p class="error">Antall deltakere overskrider maksgrensen på ' . esc_html(
                                 $capacityLimit
                             ) . ' plasser for denne kursdatoen.</p>';
@@ -574,14 +625,12 @@ class Shortcode {
                         $buyerEmail = sanitize_email($_POST['cm_buyer_email'] ?? '');
                         $buyerPhone = sanitize_text_field($_POST['cm_buyer_phone'] ?? '');
                         $buyerStreetAddress = sanitize_text_field($_POST['cm_buyer_street_address'] ?? '');
-                        $buyerPostalCode = sanitize_text_field($_POST['cm_buyer_postal_code'] ?? '');
-                        $buyerCity = sanitize_text_field($_POST['cm_buyer_city'] ?? '');
+                        $buyerPostalCode = sanitize_text_field($_POST['cm_postal_code'] ?? ''); // Corrected input name
+                        $buyerCity = sanitize_text_field($_POST['cm_city'] ?? ''); // Corrected input name
                         $buyerComments = sanitize_textarea_field($_POST['cm_buyer_comments'] ?? '');
                         $buyerCompany = sanitize_text_field($_POST['cm_buyer_company'] ?? '');
 
                         $participants = [];
-                        $participantCount = isset($_POST['cm_participant_count']) ? (int)$_POST['cm_participant_count'] : 0;
-
                         for ($i = 0; $i < $participantCount; $i++) {
                             if (isset($_POST['cm_participant_name'][$i], $_POST['cm_participant_email'][$i])) {
                                 $participantBirthdate = sanitize_text_field($_POST['cm_participant_birthdate'][$i] ?? '');
@@ -602,7 +651,7 @@ class Shortcode {
                         if (empty($buyerName) || empty($buyerEmail) || !is_email($buyerEmail)) {
                             $submissionMessage = '<p class="error">Vennligst fyll inn alle påkrevde felt for bestiller med gyldig data.</p>';
                         } elseif (empty($participants)) {
-                            $submissionMessage = '<p class="error">Minst én deltaker må legges til.</p>';
+                            $submissionMessage = '<p class="error">Minst én deltaker må meldes på.</p>';
                         } elseif (!empty($buyerPostalCode) && !preg_match('/^\d{4}$/', $buyerPostalCode)) {
                             $submissionMessage = '<p class="error">Postnummer må være 4 sifre (f.eks. 1234).</p>';
                         } else {
@@ -626,7 +675,7 @@ class Shortcode {
                             if ($totalPrice === 0) {
                                 $enrollmentId = $this->completeEnrollment($enrollmentData);
                                 if ($enrollmentId) {
-                                    $submissionMessage = '<p class="success">Påmeldingen er fullført! En bekreftelse er sendt til ' . esc_html(
+                                    $submissionMessage = '<p class="success">Påmeldingen er fullført! En bekreftelse er sent til ' . esc_html(
                                             $buyerEmail
                                         ) . '.</p>';
                                 } else {
@@ -664,7 +713,6 @@ class Shortcode {
         if (isset($_GET['payment_success']) && $_GET['payment_success'] === '1') {
             return '<p class="success">Påmeldingen er fullført! Du vil motta en bekreftelse på e-post.</p>';
         }
-
 
         ob_start();
         ?>
@@ -731,10 +779,59 @@ class Shortcode {
 
                                     $courseDateDisplayString = DateFormatter::formatCourseDateDisplay($courseDate);
 
+                                    // Get taxonomy data for this specific course date or fallback to course level
+                                    $courseDateTaxonomies = $courseDate['taxonomies'] ?? [];
+                                    $dateSpecificTaxonomyData = [];
+
+                                    // Get registered taxonomies to ensure correct slugs are used
+                                    $registeredTaxonomies = get_taxonomies(['_builtin' => false, 'object_type' => ['course']], 'objects');
+                                    $pluginTaxonomySlugs = array_keys(get_option('course_manager_taxonomies', []));
+
+                                    foreach ($registeredTaxonomies as $taxObject) {
+                                        if (in_array($taxObject->name, $pluginTaxonomySlugs)) { // Only include taxonomies defined by the plugin
+                                            $slug = $taxObject->name;
+                                            $termsToDisplay = [];
+                                            if (!empty($courseDateTaxonomies[$slug])) {
+                                                // Use date-specific terms if available
+                                                $termsToDisplay = $courseDateTaxonomies[$slug];
+                                            } else {
+                                                // Otherwise, use course-specific terms
+                                                $courseTerms = get_the_terms($courseId, $slug);
+                                                if (!is_wp_error($courseTerms) && !empty($courseTerms)) {
+                                                    $termsToDisplay = wp_list_pluck($courseTerms, 'slug');
+                                                }
+                                            }
+
+                                            // Fetch term objects to get their names
+                                            $termNamesToDisplay = [];
+                                            if (!empty($termsToDisplay)) {
+                                                $termObjects = get_terms([
+                                                    'taxonomy' => $slug,
+                                                    'slug' => $termsToDisplay,
+                                                    'hide_empty' => false,
+                                                ]);
+                                                if (!is_wp_error($termObjects) && !empty($termObjects)) {
+                                                    $termNamesToDisplay = wp_list_pluck($termObjects, 'name');
+                                                }
+                                            }
+
+                                            if (!empty($termNamesToDisplay)) {
+                                                // Use the actual registered slug as the key for data attribute
+                                                $dateSpecificTaxonomyData[$slug] = $termNamesToDisplay;
+                                            }
+                                        }
+                                    }
+
+                                    // Store date-specific info in data attributes
+                                    $dataAttributes = ' data-date-display="' . esc_attr($courseDateDisplayString) . '"';
+                                    foreach($dateSpecificTaxonomyData as $taxSlug => $terms) { // Iterate using the actual registered slug
+                                        $dataAttributes .= ' data-taxonomy-' . esc_attr($taxSlug) . '="' . esc_attr(implode(', ', $terms)) . '"';
+                                    }
+
                                     // Only show available course dates in the dropdown
                                     if ($isAvailable):
                                         ?>
-                                        <option value="<?php echo esc_attr($index); ?>" <?php selected($preSelectedCourseDateIndex, $index); ?>>
+                                        <option value="<?php echo esc_attr($index); ?>" <?php selected($preSelectedCourseDateIndex, $index); ?> <?php echo $dataAttributes; ?>>
                                             <?php echo esc_html($courseDateDisplayString); ?> (Ledige plasser: <?php echo $capacityLimit !== null ? ($capacityLimit - $currentParticipants) : 'Ubegrenset'; ?>)
                                         </option>
                                     <?php endif; ?>
@@ -746,6 +843,18 @@ class Shortcode {
                         </div>
                     </fieldset>
 
+                    <div id="cm-selected-course-date-info">
+                        <h4>Valgt kursdato: <span id="cm-selected-date-display"></span></h4>
+                        <div id="cm-selected-taxonomy-info">
+                            <?php $allTaxonomies = get_option('course_manager_taxonomies', []); ?>
+                            <?php $registeredTaxonomies = get_taxonomies(['_builtin' => false, 'object_type' => ['course']], 'objects'); ?>
+                            <?php foreach ($registeredTaxonomies as $taxObject): ?>
+                                <?php if (array_key_exists($taxObject->name, $allTaxonomies)): // Only include taxonomies defined by the plugin ?>
+                                    <p><strong><?php echo esc_html($allTaxonomies[$taxObject->name]); ?>:</strong> <span id="cm-selected-taxonomy-<?php echo esc_attr($taxObject->name); ?>"></span></p>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
 
                     <fieldset>
                         <legend>Bestillerinformasjon</legend>
@@ -779,13 +888,13 @@ class Shortcode {
 
                         <div class="cm-address-group">
                             <div class="cm-address-field">
-                                <label for="cm_buyer_postal_code">Postnummer</label>
-                                <input type="text" name="cm_buyer_postal_code" id="cm_buyer_postal_code"
+                                <label for="cm_postal_code">Postnummer</label>
+                                <input type="text" name="cm_postal_code" id="cm_postal_code"
                                        placeholder="1234">
                             </div>
                             <div class="cm-address-field">
-                                <label for="cm_buyer_city">Poststed</label>
-                                <input type="text" name="cm_buyer_city" id="cm_buyer_city" placeholder="Oslo">
+                                <label for="cm_city">Poststed</label>
+                                <input type="text" name="cm_city" id="cm_city" placeholder="Oslo">
                             </div>
                         </div>
 
@@ -798,7 +907,7 @@ class Shortcode {
 
                     <fieldset>
                         <legend>Deltakerinformasjon</legend>
-                        <p class="cm-participant-info">Minst én deltaker må legges til.</p>
+                        <p class="cm-participant-info">Minst én deltaker må meldes på.</p>
                         <div id="cm-participant-list"></div>
                         <button type="button" id="cm-add-participant" class="cm-add-participant">Legg til deltaker
                         </button>
@@ -881,16 +990,9 @@ class Shortcode {
                     'course_title' => get_the_title($courseId),
                     'participant_count' => count($participants),
                     'total_price' => $totalPrice,
-                    'participants' => implode("\n", array_map(function ($participant) {
-                        return "- " . $participant['name'];
-                    }, $participants)),
-                    'buyer_email' => $buyerEmail,
-                    'buyer_phone' => $buyerPhone,
-                    'buyer_company' => $buyerCompany,
-                    'buyer_street_address' => $buyerStreetAddress,
-                    'buyer_postal_code' => $buyerPostalCode,
-                    'buyer_city' => $buyerCity,
-                    'buyer_comments' => $buyerComments,
+                    'participants' => is_array($participants) ? implode("\n", array_map(function ($participant) {
+                        return "- " . ($participant['name'] ?? '');
+                    }, $participants)) : '',
                     'course_date_date' => $selectedCourseDate ? DateFormatter::formatCourseDateDate($selectedCourseDate) : 'Ukjent dato',
                     'course_date_time' => $selectedCourseDate ? DateFormatter::formatCourseDateTime($selectedCourseDate) : 'Ukjent tid',
                 ];
@@ -953,7 +1055,7 @@ class Shortcode {
         $order = wc_get_order($order_id);
         $enrollmentData = $order->get_meta('_cm_enrollment_data', true);
 
-        if ($enrollmentData && is_array($enrollmentData)) {
+        if (is_array($enrollmentData) && !empty($enrollmentData)) {
             $enrollmentId = $this->completeEnrollment($enrollmentData);
             if ($enrollmentId) {
                 $order->add_order_note(
@@ -975,7 +1077,7 @@ class Shortcode {
      */
     public function customizeReturnUrl(string $return_url, $order): string {
         $enrollmentData = $order->get_meta('_cm_enrollment_data', true);
-        if ($enrollmentData && isset($enrollmentData['course_id'])) {
+        if (is_array($enrollmentData) && !empty($enrollmentData) && isset($enrollmentData['course_id'])) {
             return add_query_arg('payment_success', '1', get_permalink($enrollmentData['course_id']));
         }
         return $return_url;

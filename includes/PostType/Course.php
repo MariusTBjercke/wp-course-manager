@@ -124,12 +124,12 @@ class Course {
      * @param WP_Post $post The current post object.
      */
     public function renderEmailMessageMetaBox(WP_Post $post): void {
-        $custom_message = get_post_meta($post->ID, '_course_custom_email_message', true);
+        $customMessage = get_post_meta($post->ID, '_course_custom_email_message', true);
         wp_nonce_field('course_email_message_nonce', 'course_email_message_nonce');
         ?>
         <p>
             <label for="course_custom_email_message">Egendefinert melding (valgfritt):</label><br>
-            <textarea name="course_custom_email_message" id="course_custom_email_message" rows="5" cols="50"><?php echo esc_textarea($custom_message); ?></textarea>
+            <textarea name="course_custom_email_message" id="course_custom_email_message" rows="5" cols="50"><?php echo esc_textarea($customMessage); ?></textarea>
         </p>
         <p class="description">Hvis tom, brukes standardmeldingen fra innstillingene. Bruk følgende tagger for å inkludere variabler:<br>
             - [buyer_name]: Navnet på bestilleren<br>
@@ -155,11 +155,15 @@ class Course {
             $courseDates = [];
         }
         wp_nonce_field('course_dates_nonce', 'course_dates_nonce');
+
+        $taxonomies = get_option('course_manager_taxonomies', []);
         ?>
         <div id="course-dates-wrapper">
             <?php
             if (!empty($courseDates)) {
-                foreach ($courseDates as $index => $courseDate): ?>
+                foreach ($courseDates as $index => $courseDate):
+                    $selectedTaxonomyTerms = $courseDate['taxonomies'] ?? [];
+                    ?>
                     <div class="course-course-date" data-index="<?php echo $index; ?>">
                         <h4>Kursdato #<span class="course-date-number"><?php echo $index + 1; ?></span></h4>
                         <p>
@@ -183,6 +187,25 @@ class Course {
                             <input type="number" name="course_dates[<?php echo $index; ?>][max_participants_course_date]" value="<?php echo esc_attr($courseDate['max_participants_course_date'] ?? ''); ?>" min="0" step="1">
                             <span class="description">Sett en grense for antall deltakere for denne kursdatoen. La stå tomt for ubegrenset kapasitet.</span>
                         </p>
+
+                        <div class="course-date-taxonomies">
+                            <h4>Taksonomier for denne kursdatoen (valgfritt):</h4>
+                            <?php foreach ($taxonomies as $slug => $name):
+                                $terms = get_terms(['taxonomy' => $slug, 'hide_empty' => false]);
+                                if (!is_wp_error($terms) && !empty($terms)):
+                                    $currentTerms = $selectedTaxonomyTerms[$slug] ?? [];
+                                    ?>
+                                    <div class="course-date-taxonomy-checklist">
+                                        <p class="taxonomy-label"><strong><?php echo esc_html($name); ?>:</strong></p>
+                                        <ul class="categorychecklist">
+                                            <?php $this->renderTaxonomyCheckboxes($terms, $slug, $currentTerms, $index); ?>
+                                        </ul>
+                                        <p class="description">Velg spesifikke termer for denne kursdatoen. Hvis ingen er valgt, brukes taksonomier fra selve kurset.</p>
+                                    </div>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                        </div>
+
                         <button type="button" class="button remove-course-date">Fjern kursdato</button>
                         <hr>
                     </div>
@@ -216,6 +239,24 @@ class Course {
                     <input type="number" name="course_dates[__INDEX__][max_participants_course_date]" value="" min="0" step="1">
                     <span class="description">Sett en grense for antall deltakere for denne kursdatoen. La stå tomt for ubegrenset kapasitet.</span>
                 </p>
+
+                <div class="course-date-taxonomies">
+                    <h4>Taksonomier for denne kursdatoen (valgfritt):</h4>
+                    <?php foreach ($taxonomies as $slug => $name):
+                        $terms = get_terms(['taxonomy' => $slug, 'hide_empty' => false]);
+                        if (!is_wp_error($terms) && !empty($terms)):
+                            ?>
+                            <div class="course-date-taxonomy-checklist">
+                                <p class="taxonomy-label"><strong><?php echo esc_html($name); ?>:</strong></p>
+                                <ul class="categorychecklist">
+                                    <?php $this->renderTaxonomyCheckboxes($terms, $slug, [], '__INDEX__'); // Pass empty array for new dates, and the index placeholder ?>
+                                </ul>
+                                <p class="description">Velg spesifikke termer for denne kursdatoen. Hvis ingen er valgt, brukes taksonomier fra selve kurset.</p>
+                            </div>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                </div>
+
                 <button type="button" class="button remove-course-date">Fjern kursdato</button>
                 <hr>
             </div>
@@ -246,7 +287,7 @@ class Course {
      * @param WP_Post $post The current post object.
      */
     public function renderMoreInfoPageMetaBox(WP_Post $post): void {
-        $selected_page = get_post_meta($post->ID, '_course_more_info_page', true);
+        $selectedPage = get_post_meta($post->ID, '_course_more_info_page', true);
         wp_nonce_field('course_more_info_page_nonce', 'course_more_info_page_nonce');
         ?>
         <p>
@@ -255,7 +296,7 @@ class Course {
             wp_dropdown_pages([
                 'name' => 'course_more_info_page',
                 'id' => 'course_more_info_page',
-                'selected' => $selected_page,
+                'selected' => $selectedPage,
                 'show_option_none' => '— Ingen side valgt —',
                 'option_none_value' => '',
             ]);
@@ -289,6 +330,18 @@ class Course {
                     $startTime = sanitize_text_field($courseDateData['start_time'] ?? '');
                     $endTime = sanitize_text_field($courseDateData['end_time'] ?? '');
                     $maxParticipantsCourseDate = sanitize_text_field($courseDateData['max_participants_course_date'] ?? '');
+                    $taxonomyTerms = $courseDateData['taxonomies'] ?? [];
+
+                    // Sanitize taxonomy terms
+                    $sanitizedTaxonomyTerms = [];
+                    if (is_array($taxonomyTerms)) {
+                        foreach ($taxonomyTerms as $taxSlug => $terms) {
+                            // Ensure $terms is an array before array_map
+                            if (is_array($terms)) {
+                                $sanitizedTaxonomyTerms[sanitize_key($taxSlug)] = array_map('sanitize_text_field', $terms);
+                            }
+                        }
+                    }
 
                     // Basic validation for start date
                     if (!empty($startDate) && DateTime::createFromFormat('Y-m-d', $startDate) !== false) {
@@ -298,6 +351,7 @@ class Course {
                             'start_time' => (!empty($startTime) && preg_match('/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/', $startTime)) ? $startTime : '',
                             'end_time' => (!empty($endTime) && preg_match('/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/', $endTime)) ? $endTime : '',
                             'max_participants_course_date' => ($maxParticipantsCourseDate !== '' && $maxParticipantsCourseDate >= 0) ? absint($maxParticipantsCourseDate) : '',
+                            'taxonomies' => $sanitizedTaxonomyTerms,
                         ];
                     }
                 }
@@ -322,6 +376,97 @@ class Course {
                     delete_post_meta($post_id, '_course_more_info_page');
                 }
             }
+        }
+    }
+
+    /**
+     * Organize terms hierarchically into a nested array.
+     * Copied from Shortcode.php for use in admin.
+     *
+     * @param array $terms List of taxonomy terms.
+     * @return array Organized terms with children nested under parents.
+     */
+    private function organizeTermsHierarchically(array $terms): array {
+        $organized = [];
+        $termMap = [];
+
+        // First, map all terms by their ID for easy lookup
+        foreach ($terms as $term) {
+            $termMap[$term->term_id] = [
+                'term' => $term,
+                'children' => []
+            ];
+        }
+
+        // Then, organize terms into a hierarchy
+        foreach ($termMap as $termId => &$termData) {
+            $term = $termData['term'];
+            if ($term->parent == 0) {
+                // This is a parent term
+                $organized[$termId] = $termData;
+            } else {
+                // This is a child term, add it to its parent's children
+                if (isset($termMap[$term->parent])) {
+                    $termMap[$term->parent]['children'][$termId] = $termData;
+                }
+            }
+        }
+
+        return $organized;
+    }
+
+    /**
+     * Render taxonomy terms as hierarchical checkboxes for a course date.
+     * Adapted from Shortcode.php's renderTaxonomyTerms.
+     *
+     * @param array $terms List of taxonomy terms (can be hierarchical).
+     * @param string $taxonomy_slug The taxonomy slug.
+     * @param array $selected_terms The currently selected term slugs for this date.
+     * @param int|string $index The index of the course date (or placeholder).
+     */
+    private function renderTaxonomyCheckboxes(
+        array $terms,
+        string $taxonomy_slug,
+        array $selected_terms,
+        int|string $index
+    ): void {
+        // Organize terms hierarchically first
+        $hierarchicalTerms = $this->organizeTermsHierarchically($terms);
+
+        // Render the hierarchical list
+        $this->renderTermCheckboxesList($hierarchicalTerms, $taxonomy_slug, $selected_terms, $index);
+    }
+
+    /**
+     * Recursive helper to render hierarchical term checkboxes.
+     *
+     * @param array $terms Organized terms with children.
+     * @param string $taxonomy_slug The taxonomy slug.
+     * @param array $selected_terms The currently selected term slugs.
+     * @param int|string $index The index of the course date (or placeholder).
+     */
+    private function renderTermCheckboxesList(
+        array $terms,
+        string $taxonomy_slug,
+        array $selected_terms,
+        int|string $index
+    ): void {
+        foreach ($terms as $termData) {
+            $term = $termData['term'];
+            $children = $termData['children'];
+            ?>
+            <li id="<?php echo esc_attr($taxonomy_slug); ?>-<?php echo esc_attr($term->term_id); ?>">
+                <label class="selectit">
+                    <input value="<?php echo esc_attr($term->slug); ?>" type="checkbox" name="course_dates[<?php echo $index; ?>][taxonomies][<?php echo esc_attr($taxonomy_slug); ?>][]" id="term-<?php echo esc_attr($term->term_id); ?>" <?php checked(in_array($term->slug, $selected_terms), true); ?> />
+                    <?php echo esc_html($term->name); ?>
+                </label>
+                <?php if (!empty($children)): ?>
+                    <ul class="children">
+                        <?php $this->renderTermCheckboxesList($children, $taxonomy_slug, $selected_terms, $index); ?>
+                    </ul>
+                <?php endif; ?>
+            </li>
+            <?php
         }
     }
 }
