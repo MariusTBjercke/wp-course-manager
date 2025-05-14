@@ -18,6 +18,7 @@ module.exports = [
     mode: developmentEnv ? 'development' : 'production',
     entry: {
       script: './src/js/index.ts',
+      'admin-script': './src/js/admin/index.ts',
     },
     output: {
       filename: '[name].js',
@@ -43,7 +44,7 @@ module.exports = [
     mode: developmentEnv ? 'development' : 'production',
     entry: {
       style: './src/scss/style.scss',
-      admin: './src/scss/admin.scss',
+      'admin-style': './src/scss/admin-style.scss',
     },
     output: {
       path: path.resolve(__dirname, 'dist'),

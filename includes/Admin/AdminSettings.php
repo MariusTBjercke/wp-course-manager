@@ -12,7 +12,6 @@ class AdminSettings {
     public function register(): void {
         add_action('admin_menu', [$this, 'addMenuPages']);
         add_action('admin_init', [$this, 'registerSettings']);
-        add_action('admin_enqueue_scripts', [$this, 'enqueueAdminStyles']);
     }
 
     /**
@@ -372,21 +371,5 @@ class AdminSettings {
             Eksempel: "Ny påmelding til [course_title] fra [buyer_name]."
         </p>
         <?php
-    }
-
-    /**
-     * Enqueue admin styles.
-     *
-     * @param string $hook The name of the action to add the callback to.
-     */
-    public function enqueueAdminStyles(string $hook): void {
-        if ($hook === 'course_page_course_manager_settings' || get_current_screen()->post_type === 'course_enrollment') {
-            wp_enqueue_style(
-                'course-manager-admin-style',
-                plugin_dir_url(__DIR__) . '../dist/admin.css',
-                [],
-                filemtime(plugin_dir_path(__DIR__) . '../dist/admin.css')
-            );
-        }
     }
 }

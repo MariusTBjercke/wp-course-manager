@@ -27,6 +27,7 @@ class Init {
         // Register admin components
         if (is_admin()) {
             (new AdminSettings())->register();
+            add_action('admin_enqueue_scripts', [new Assets(), 'enqueueAdmin']);
         }
 
         // Flush rewrite rules on activation and deactivation
