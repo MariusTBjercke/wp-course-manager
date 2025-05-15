@@ -18,7 +18,6 @@ class Shortcode {
     public function register(): void {
         add_shortcode('course_manager', [$this, 'renderCourseList']);
         add_shortcode('course_enrollment_form', [$this, 'renderEnrollmentForm']);
-        add_shortcode('course_manager_slider', [$this, 'renderCourseSlider']);
 
         add_filter('wp_mail_from', function ($email) {
             return get_option('admin_email') ?: 'no-reply@' . wp_parse_url(get_site_url(), PHP_URL_HOST);
