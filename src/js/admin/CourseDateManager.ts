@@ -41,7 +41,7 @@ export default class CourseDateManager {
 
     const newCourseDateElement = document.createElement('div');
     newCourseDateElement.innerHTML = newCourseDateHtml.trim();
-    this.wrapper.appendChild(newCourseDateElement.firstChild as HTMLElement);
+    this.wrapper.appendChild(newCourseDateElement.firstElementChild as HTMLElement);
 
     this.updateCourseDateNumbers();
   }
