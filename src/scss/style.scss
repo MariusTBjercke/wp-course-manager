@@ -2,7 +2,6 @@
 
 @use "components/course-manager" as cm;
 @use "components/enrollment-form" as ef;
-@use "components/course-slider" as cs;
 
 // Import the base styles for the plugin
 .cm-course-manager-base {
@@ -11,9 +10,6 @@
   }
   .cm-enrollment-form {
     @extend %cm-enrollment-form;
-  }
-  .cm-course-slider {
-    @extend %cm-course-slider;
   }
 }
 
@@ -30,8 +26,5 @@
   }
   .cm-enrollment-form {
     @extend %cm-enrollment-form;
-  }
-  .cm-course-slider {
-    @extend %cm-course-slider;
   }
 }

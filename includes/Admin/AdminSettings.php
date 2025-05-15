@@ -39,16 +39,22 @@ class AdminSettings {
             'default' => 10
         ]);
 
-        register_setting('course_manager_settings', 'course_manager_slider_items', [
-            'type' => 'integer',
-            'sanitize_callback' => 'absint',
-            'default' => 5
-        ]);
-
         register_setting('course_manager_settings', 'course_manager_taxonomies', [
             'type' => 'array',
             'sanitize_callback' => [$this, 'sanitizeTaxonomies'],
             'default' => []
+        ]);
+
+        register_setting('course_manager_settings', 'course_manager_dropdown_taxonomies', [
+            'type' => 'array',
+            'sanitize_callback' => [$this, 'sanitizeDropdownTaxonomies'],
+            'default' => []
+        ]);
+
+        register_setting('course_manager_settings', 'course_manager_dropdown_format', [
+            'type' => 'string',
+            'sanitize_callback' => 'sanitize_text_field',
+            'default' => '[date] ([taxonomies]) (Ledige plasser: [available_slots])' // Default pattern
         ]);
 
         register_setting('course_manager_settings', 'course_manager_default_email_message', [
@@ -108,17 +114,25 @@ class AdminSettings {
         );
 
         add_settings_field(
-            'course_manager_slider_items',
-            'Antall kurs i slider',
-            [$this, 'renderSliderItemsField'],
+            'course_manager_taxonomies',
+            'Taksonomier',
+            [$this, 'renderTaxonomiesField'],
             'course_manager_settings_general',
             'course_manager_general_section'
         );
 
         add_settings_field(
-            'course_manager_taxonomies',
-            'Taksonomier',
-            [$this, 'renderTaxonomiesField'],
+            'course_manager_dropdown_taxonomies',
+            'Taksonomier under dropdown (dynamisk visning)',
+            [$this, 'renderDropdownTaxonomiesField'],
+            'course_manager_settings_general',
+            'course_manager_general_section'
+        );
+
+        add_settings_field(
+            'course_manager_dropdown_format',
+            'Format for dropdown-tekst',
+            [$this, 'renderDropdownFormatField'],
             'course_manager_settings_general',
             'course_manager_general_section'
         );
@@ -179,6 +193,33 @@ class AdminSettings {
     }
 
     /**
+     * Sanitize dropdown taxonomies.
+     *
+     * @param array|null $input The input to sanitize.
+     * @return array Sanitized dropdown taxonomies as an array of slugs.
+     */
+    public function sanitizeDropdownTaxonomies(?array $input): array {
+        $sanitized = [];
+        if (!is_array($input)) {
+            return $sanitized;
+        }
+
+        // Get registered plugin taxonomy slugs to validate against
+        $registered_taxonomies = array_keys(get_option('course_manager_taxonomies', []));
+
+        foreach ($input as $slug) {
+            $sanitizedSlug = sanitize_key($slug);
+            // Only include slugs that correspond to registered plugin taxonomies
+            if (!empty($sanitizedSlug) && in_array($sanitizedSlug, $registered_taxonomies)) {
+                $sanitized[] = $sanitizedSlug;
+            }
+        }
+        // Ensure uniqueness of slugs
+        $sanitized = array_unique($sanitized);
+        return $sanitized;
+    }
+
+    /**
      * Render the settings page.
      */
     public function renderSettingsPage(): void {
@@ -186,9 +227,9 @@ class AdminSettings {
             'general' => 'Generelt',
             'email' => 'E-post'
         ];
-        $active_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'general';
-        if (!array_key_exists($active_tab, $tabs)) {
-            $active_tab = 'general';
+        $activeTab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'general';
+        if (!array_key_exists($activeTab, $tabs)) {
+            $activeTab = 'general';
         }
         ?>
         <div class="wrap">
@@ -203,7 +244,7 @@ class AdminSettings {
             <h2 class="nav-tab-wrapper">
                 <?php foreach ($tabs as $tab_id => $tab_name): ?>
                     <a href="?post_type=course&page=course_manager_settings&tab=<?php echo esc_attr($tab_id); ?>"
-                       class="nav-tab <?php echo $active_tab === $tab_id ? 'nav-tab-active' : ''; ?>">
+                       class="nav-tab <?php echo $activeTab === $tab_id ? 'nav-tab-active' : ''; ?>">
                         <?php echo esc_html($tab_name); ?>
                     </a>
                 <?php endforeach; ?>
@@ -212,7 +253,7 @@ class AdminSettings {
             <form method="post" action="options.php">
                 <?php
                 settings_fields('course_manager_settings');
-                do_settings_sections('course_manager_settings_' . $active_tab);
+                do_settings_sections('course_manager_settings_' . $activeTab);
                 submit_button();
                 ?>
             </form>
@@ -247,17 +288,6 @@ class AdminSettings {
     }
 
     /**
-     * Render the slider items field.
-     */
-    public function renderSliderItemsField(): void {
-        $value = get_option('course_manager_slider_items', 5);
-        ?>
-        <input type="number" name="course_manager_slider_items" value="<?php echo esc_attr($value); ?>" min="1" max="20"/>
-        <p class="description">Antall kurs som vises i slideren ([course_manager_slider]).</p>
-        <?php
-    }
-
-    /**
      * Render the taxonomies field.
      */
     public function renderTaxonomiesField(): void {
@@ -283,30 +313,65 @@ class AdminSettings {
             "Kategorier", "Typer". Skriv navnet i flertallsform hvis det skal vises slik i menyen (f.eks. "Typer" i
             stedet for "Type").</p>
 
-        <script>
-          document.getElementById('add-taxonomy').addEventListener('click', function () {
-            const wrapper = document.getElementById('taxonomies-wrapper');
-            const newRow = document.createElement('div');
-            newRow.className = 'taxonomy-row';
-            const timestamp = Date.now();
-            newRow.innerHTML = `
-                    <input type="text" name="course_manager_taxonomies[custom_${timestamp}]" placeholder="Navn på taksonomi"/>
-                    <button type="button" class="button remove-taxonomy">Fjern</button>
-                `;
-            wrapper.appendChild(newRow);
-          });
+        <?php
+        // The JavaScript for adding/removing rows is now handled by AdminTaxonomyManager.ts
+    }
 
-          document.addEventListener('click', function (e) {
-            if (e.target.classList.contains('remove-taxonomy')) {
-              const rows = document.querySelectorAll('#taxonomies-wrapper .taxonomy-row');
-              if (rows.length > 1) {
-                e.target.parentElement.remove();
-              }
-            }
-          });
-        </script>
+    /**
+     * Render the dropdown taxonomies field.
+     */
+    public function renderDropdownTaxonomiesField(): void {
+        $registered_taxonomies = get_option('course_manager_taxonomies', []);
+        $selected_dropdown_taxonomies = get_option('course_manager_dropdown_taxonomies', []);
+
+        if (empty($registered_taxonomies)) {
+            echo '<p>Ingen taksonomier er registrert ennå. Vennligst legg til taksonomier ovenfor for å kunne velge hvilke som skal vises i dropdownen.</p>';
+            return;
+        }
+
+        ?>
+        <p class="description">Velg hvilke taksonomier som skal vises under dropdown-listen på påmeldingsskjemaet, og som kan inkluderes i dropdown-teksten via mønsteret nedenfor.</p>
+        <ul>
+            <?php foreach ($registered_taxonomies as $slug => $name): ?>
+                <li>
+                    <label>
+                        <input type="checkbox" name="course_manager_dropdown_taxonomies[]" value="<?php echo esc_attr($slug); ?>" <?php checked(in_array($slug, $selected_dropdown_taxonomies), true); ?> />
+                        <?php echo esc_html($name); ?>
+                    </label>
+                </li>
+            <?php endforeach; ?>
+        </ul>
         <?php
     }
+
+    /**
+     * Render the dropdown format field.
+     */
+    public function renderDropdownFormatField(): void {
+        $value = get_option('course_manager_dropdown_format', '[date] ([taxonomies]) (Ledige plasser: [available_slots])');
+        $registered_taxonomies = get_option('course_manager_taxonomies', []);
+        ?>
+        <input type="text" name="course_manager_dropdown_format" value="<?php echo esc_attr($value); ?>" style="width: 100%; max-width: 600px;"/>
+        <p class="description">Definer formatet for teksten i dropdown-listen for kursdatoer. Bruk følgende plassholdere:<br>
+            - <code>[date]</code>: Dato(er) for kursdatoen<br>
+            - <code>[time]</code>: Tid(er) for kursdatoen<br>
+            - <code>[available_slots]</code>: Antall ledige plasser<br>
+            - <code>[taxonomies]</code>: Viser en liste over taksonomier valgt ovenfor som har en datospesifikk verdi for denne kursdatoen.<br>
+            <?php if (!empty($registered_taxonomies)): ?>
+                Du kan også bruke spesifikke taksonomi-plassholdere i formatet <code>[taxonomy_SLUG]</code> for å vise verdien for en spesifikk taksonomi (hvis datospesifikk verdi finnes, ellers kursspesifikk hvis datospesifikk ikke finnes, ellers tom). Tilgjengelige taksonomier:
+                <?php
+                $taxonomy_placeholders = [];
+                foreach ($registered_taxonomies as $slug => $name) {
+                    $taxonomy_placeholders[] = "<code>[taxonomy_{$slug}]</code> (" . esc_html($name) . ")";
+                }
+                echo implode(', ', $taxonomy_placeholders);
+                ?>
+            <?php endif; ?>
+            <br>Eksempel: <code>[date], [time] - [taxonomy_sted] ([available_slots] plasser)</code>
+        </p>
+        <?php
+    }
+
 
     /**
      * Render the enable emails field.
@@ -352,7 +417,8 @@ class AdminSettings {
      * Render the admin email message field.
      */
     public function renderAdminEmailMessageField(): void {
-        $value = get_option('course_manager_admin_email_message', "Hei,\n\nEn ny påmelding har blitt registrert for kurset \"[course_title]\".\n\nBestillerinformasjon:\n- Navn: [buyer_name]\n- E-post: [buyer_email]\n- Telefonnummer: [buyer_phone]\n- Firma: [buyer_company]\n- Gateadresse: [buyer_street_address]\n- Postnummer: [buyer_postal_code]\n- Poststed: [buyer_city]\n- Kommentarer/spørsmål: [buyer_comments]\n\nDeltakere ([participant_count]):\n[participants]\n\nTotal pris: [total_price] NOK\n\nBeste hilsener,\nKursadministrator-systemet");
+        $value = get_option('course_manager_admin_email_message', "Hei,\n\nEn ny påmelding har blitt registrert for kurset \"[course_title]\".\n\nBestillerinformasjon:\n- Navn: [buyer_name]\n- E-post: [buyer_email]\n- Telefonnummer: [buyer_phone]\n- Firma: [buyer_company]\n- Gateadresse: [buyer_street_address]\n- Postnummer: [buyer_postal_code]\n- Poststed: [buyer_city]\n- Kommentarer/spørsmål: [buyer_comments]\n\nDeltakere ([participant_count]):\n[participants]\n\nTotal pris: [total_price] NOK\n\nBeste hilsener,\nKursadministrator-systemet"
+        );
         ?>
         <textarea name="course_manager_admin_email_message" rows="5" cols="50"><?php echo esc_textarea($value); ?></textarea>
         <p class="description">Standard melding som sendes til administratoren ved nye påmeldinger. Bruk følgende tagger for å inkludere variabler:<br>

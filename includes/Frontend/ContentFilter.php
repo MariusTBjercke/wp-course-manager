@@ -2,8 +2,6 @@
 
 namespace CourseManager\Frontend;
 
-use DateTime;
-
 /**
  * Content filter class for adding course metadata and enrollment form to content.
  */
@@ -26,20 +24,27 @@ class ContentFilter {
             return $content;
         }
 
-        // Add course metadata (e.g., location, start date, price)
-        $startDate = get_post_meta(get_the_ID(), 'startdato', true);
-        $startDate = $startDate ? DateTime::createFromFormat('Y-m-d', $startDate)->format('d.m.Y') : '';
-
         $price = get_post_meta(get_the_ID(), '_course_price', true);
+        $taxonomies = get_option('course_manager_taxonomies', []);
+        $courseTaxonomyData = [];
+        foreach ($taxonomies as $slug => $name) {
+            $terms = get_the_terms(get_the_ID(), $slug);
+            if ($terms && !is_wp_error($terms)) {
+                $courseTaxonomyData[$name] = wp_list_pluck($terms, 'name');
+            }
+        }
 
         $metaHtml = '<div class="cm-course-meta-details">';
-        if ($startDate) {
-            $metaHtml .= '<p><strong>Startdato:</strong> ' . esc_html($startDate) . '</p>';
+        foreach ($courseTaxonomyData as $typeName => $terms) {
+            if (!empty($terms)) {
+                $metaHtml .= '<p><strong>' . esc_html($typeName) . ':</strong> ' . esc_html(implode(', ', $terms)) . '</p>';
+            }
         }
         if ($price) {
             $metaHtml .= '<p><strong>Pris per deltaker:</strong> ' . esc_html($price) . ' NOK</p>';
         }
         $metaHtml .= '</div>';
+
 
         // Check if the content already contains the enrollment form shortcode
         if (has_shortcode($content, 'course_enrollment_form')) {

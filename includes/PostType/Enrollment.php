@@ -3,6 +3,7 @@
 namespace CourseManager\PostType;
 
 use WP_Post;
+use CourseManager\Helpers\DateFormatter;
 
 /**
  * Enrollment post type class for managing course enrollments.
@@ -61,6 +62,7 @@ class Enrollment {
      */
     public function renderDetailsMetaBox(WP_Post $post): void {
         $courseId = get_post_meta($post->ID, 'cm_course_id', true);
+        $courseDateIndex = get_post_meta($post->ID, 'cm_course_date_index', true);
         $buyerName = get_post_meta($post->ID, 'cm_buyer_name', true);
         $buyerEmail = get_post_meta($post->ID, 'cm_buyer_email', true);
         $buyerPhone = get_post_meta($post->ID, 'cm_buyer_phone', true);
@@ -71,6 +73,17 @@ class Enrollment {
         $buyerCompany = get_post_meta($post->ID, 'cm_buyer_company', true);
         $participants = get_post_meta($post->ID, 'cm_participants', true);
         $totalPrice = get_post_meta($post->ID, 'cm_total_price', true);
+
+        // Fetch course date details
+        $courseDateDisplayString = 'Ukjent kursdato';
+        if ($courseId) {
+            $courseDates = get_post_meta($courseId, '_course_dates', true);
+            if (is_array($courseDates) && isset($courseDates[$courseDateIndex])) {
+                $selectedCourseDate = $courseDates[$courseDateIndex];
+                $courseDateDisplayString = DateFormatter::formatCourseDateDisplay($selectedCourseDate);
+            }
+        }
+
         ?>
         <div class="cm-enrollment-details">
             <h3>Bestillerinformasjon</h3>
@@ -116,7 +129,17 @@ class Enrollment {
                 <tbody>
                 <tr>
                     <th>Kurs</th>
-                    <td><a href="<?php echo get_edit_post_link($courseId); ?>"><?php echo esc_html(get_the_title($courseId)); ?></a></td>
+                    <td>
+                        <?php if ($courseId && get_post($courseId)): ?>
+                            <a href="<?php echo get_edit_post_link($courseId); ?>"><?php echo esc_html(get_the_title($courseId)); ?></a>
+                        <?php else: ?>
+                            <?php echo __('Kurs ikke funnet', 'course-manager'); ?>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+                <tr>
+                    <th>Kursdato</th>
+                    <td><?php echo esc_html($courseDateDisplayString); ?></td>
                 </tr>
                 <tr>
                     <th>Total pris</th>
@@ -139,10 +162,10 @@ class Enrollment {
                 <?php if (is_array($participants) && !empty($participants)): ?>
                     <?php foreach ($participants as $participant): ?>
                         <tr>
-                            <td><?php echo esc_html($participant['name']); ?></td>
-                            <td><?php echo esc_html($participant['email']); ?></td>
-                            <td><?php echo esc_html($participant['phone']); ?></td>
-                            <td><?php echo esc_html($participant['birthdate']); ?></td>
+                            <td><?php echo esc_html($participant['name'] ?? ''); ?></td>
+                            <td><?php echo esc_html($participant['email'] ?? ''); ?></td>
+                            <td><?php echo esc_html($participant['phone'] ?? ''); ?></td>
+                            <td><?php echo esc_html($participant['birthdate'] ?? ''); ?></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php else: ?>

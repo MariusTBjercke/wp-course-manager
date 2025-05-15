@@ -85,3 +85,137 @@
     }
   }
 }
+
+/* Styles for Course Dates Meta Box */
+.course-course-date {
+  border: 1px solid #ccc;
+  padding: 15px;
+  margin-bottom: 15px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+}
+
+.course-course-date h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.1em;
+  color: #333;
+}
+
+.course-course-date p {
+  margin-bottom: 10px;
+}
+
+.course-course-date label {
+  font-weight: bold;
+  display: inline-block;
+  margin-bottom: 5px;
+}
+
+.course-course-date input[type="date"],
+.course-course-date input[type="time"],
+.course-course-date input[type="number"] {
+  width: auto;
+  margin-top: 0;
+  padding: 5px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.course-course-date .description {
+  display: block;
+  margin-top: 5px;
+  font-style: italic;
+  color: #555;
+  font-size: 0.9em;
+}
+
+.remove-course-date {
+  margin-top: 10px;
+  color: #a00;
+  border-color: #a00;
+  background-color: transparent;
+  box-shadow: none;
+  text-decoration: underline;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0.2rem 0.5rem;
+}
+
+.remove-course-date:hover {
+  color: #b32d2e;
+  background-color: transparent;
+  text-decoration: none;
+}
+
+.course-course-date hr {
+  border: none;
+  height: 1px;
+  background-color: #ddd;
+  margin: 20px 0;
+}
+
+#add-course-date {
+  margin-top: 15px;
+}
+
+/* Styles for Course Date Taxonomy Checklist */
+.course-date-taxonomies {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #eee;
+
+  h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1em;
+    font-weight: bold;
+  }
+
+  .course-date-taxonomy-checklist {
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+
+    .taxonomy-label {
+      margin-top: 0;
+      margin-bottom: 5px;
+    }
+
+    .categorychecklist {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+
+      li {
+        margin: 0;
+        padding: 2px 0;
+
+        label.selectit {
+          font-weight: normal;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          cursor: pointer;
+
+          input[type="checkbox"] {
+            margin: 0;
+            min-width: 15px;
+            min-height: 15px;
+          }
+        }
+
+        ul.children {
+          margin-left: 20px;
+        }
+      }
+    }
+
+    .description {
+      margin-top: 10px;
+      font-size: 0.85em;
+    }
+  }
+}
