@@ -51,6 +51,12 @@ class AdminSettings {
             'default' => []
         ]);
 
+        register_setting('course_manager_settings', 'course_manager_dropdown_taxonomies', [
+            'type' => 'array',
+            'sanitize_callback' => [$this, 'sanitizeDropdownTaxonomies'],
+            'default' => []
+        ]);
+
         register_setting('course_manager_settings', 'course_manager_default_email_message', [
             'type' => 'string',
             'sanitize_callback' => 'sanitize_textarea_field',
@@ -124,6 +130,14 @@ class AdminSettings {
         );
 
         add_settings_field(
+            'course_manager_dropdown_taxonomies',
+            'Taksonomier i påmeldingsskjema (dropdown)',
+            [$this, 'renderDropdownTaxonomiesField'],
+            'course_manager_settings_general',
+            'course_manager_general_section'
+        );
+
+        add_settings_field(
             'course_manager_enable_emails',
             'Aktiver e-poster',
             [$this, 'renderEnableEmailsField'],
@@ -175,6 +189,33 @@ class AdminSettings {
                 $sanitized[$sanitizedSlug] = $sanitizedName;
             }
         }
+        return $sanitized;
+    }
+
+    /**
+     * Sanitize dropdown taxonomies.
+     *
+     * @param array|null $input The input to sanitize.
+     * @return array Sanitized dropdown taxonomies as an array of slugs.
+     */
+    public function sanitizeDropdownTaxonomies(?array $input): array {
+        $sanitized = [];
+        if (!is_array($input)) {
+            return $sanitized;
+        }
+
+        // Get registered plugin taxonomy slugs to validate against
+        $registered_taxonomies = array_keys(get_option('course_manager_taxonomies', []));
+
+        foreach ($input as $slug) {
+            $sanitizedSlug = sanitize_key($slug);
+            // Only include slugs that correspond to registered plugin taxonomies
+            if (!empty($sanitizedSlug) && in_array($sanitizedSlug, $registered_taxonomies)) {
+                $sanitized[] = $sanitizedSlug;
+            }
+        }
+        // Ensure uniqueness of slugs
+        $sanitized = array_unique($sanitized);
         return $sanitized;
     }
 
@@ -283,28 +324,33 @@ class AdminSettings {
             "Kategorier", "Typer". Skriv navnet i flertallsform hvis det skal vises slik i menyen (f.eks. "Typer" i
             stedet for "Type").</p>
 
-        <script>
-          document.getElementById('add-taxonomy').addEventListener('click', function () {
-            const wrapper = document.getElementById('taxonomies-wrapper');
-            const newRow = document.createElement('div');
-            newRow.className = 'taxonomy-row';
-            const timestamp = Date.now();
-            newRow.innerHTML = `
-                    <input type="text" name="course_manager_taxonomies[custom_${timestamp}]" placeholder="Navn på taksonomi"/>
-                    <button type="button" class="button remove-taxonomy">Fjern</button>
-                `;
-            wrapper.appendChild(newRow);
-          });
+        <?php
+    }
 
-          document.addEventListener('click', function (e) {
-            if (e.target.classList.contains('remove-taxonomy')) {
-              const rows = document.querySelectorAll('#taxonomies-wrapper .taxonomy-row');
-              if (rows.length > 1) {
-                e.target.parentElement.remove();
-              }
-            }
-          });
-        </script>
+    /**
+     * Render the dropdown taxonomies field.
+     */
+    public function renderDropdownTaxonomiesField(): void {
+        $registered_taxonomies = get_option('course_manager_taxonomies', []);
+        $selected_dropdown_taxonomies = get_option('course_manager_dropdown_taxonomies', []);
+
+        if (empty($registered_taxonomies)) {
+            echo '<p>Ingen taksonomier er registrert ennå. Vennligst legg til taksonomier ovenfor for å kunne velge hvilke som skal vises i dropdownen.</p>';
+            return;
+        }
+
+        ?>
+        <p class="description">Velg hvilke taksonomier som skal vises i dropdown-listen for kursdatoer på påmeldingsskjemaet.</p>
+        <ul>
+            <?php foreach ($registered_taxonomies as $slug => $name): ?>
+                <li>
+                    <label>
+                        <input type="checkbox" name="course_manager_dropdown_taxonomies[]" value="<?php echo esc_attr($slug); ?>" <?php checked(in_array($slug, $selected_dropdown_taxonomies), true); ?> />
+                        <?php echo esc_html($name); ?>
+                    </label>
+                </li>
+            <?php endforeach; ?>
+        </ul>
         <?php
     }
 
