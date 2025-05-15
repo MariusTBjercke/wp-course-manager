@@ -57,6 +57,12 @@ class AdminSettings {
             'default' => []
         ]);
 
+        register_setting('course_manager_settings', 'course_manager_dropdown_format', [
+            'type' => 'string',
+            'sanitize_callback' => 'sanitize_text_field',
+            'default' => '[date] ([taxonomies]) (Ledige plasser: [available_slots])' // Default pattern
+        ]);
+
         register_setting('course_manager_settings', 'course_manager_default_email_message', [
             'type' => 'string',
             'sanitize_callback' => 'sanitize_textarea_field',
@@ -131,8 +137,16 @@ class AdminSettings {
 
         add_settings_field(
             'course_manager_dropdown_taxonomies',
-            'Taksonomier i påmeldingsskjema (dropdown)',
+            'Taksonomier under dropdown (dynamisk visning)',
             [$this, 'renderDropdownTaxonomiesField'],
+            'course_manager_settings_general',
+            'course_manager_general_section'
+        );
+
+        add_settings_field(
+            'course_manager_dropdown_format',
+            'Format for dropdown-tekst',
+            [$this, 'renderDropdownFormatField'],
             'course_manager_settings_general',
             'course_manager_general_section'
         );
@@ -325,6 +339,7 @@ class AdminSettings {
             stedet for "Type").</p>
 
         <?php
+        // The JavaScript for adding/removing rows is now handled by AdminTaxonomyManager.ts
     }
 
     /**
@@ -340,7 +355,7 @@ class AdminSettings {
         }
 
         ?>
-        <p class="description">Velg hvilke taksonomier som skal vises i dropdown-listen for kursdatoer på påmeldingsskjemaet.</p>
+        <p class="description">Velg hvilke taksonomier som skal vises under dropdown-listen på påmeldingsskjemaet, og som kan inkluderes i dropdown-teksten via mønsteret nedenfor.</p>
         <ul>
             <?php foreach ($registered_taxonomies as $slug => $name): ?>
                 <li>
@@ -353,6 +368,35 @@ class AdminSettings {
         </ul>
         <?php
     }
+
+    /**
+     * Render the dropdown format field.
+     */
+    public function renderDropdownFormatField(): void {
+        $value = get_option('course_manager_dropdown_format', '[date] ([taxonomies]) (Ledige plasser: [available_slots])');
+        $registered_taxonomies = get_option('course_manager_taxonomies', []);
+        ?>
+        <input type="text" name="course_manager_dropdown_format" value="<?php echo esc_attr($value); ?>" style="width: 100%; max-width: 600px;"/>
+        <p class="description">Definer formatet for teksten i dropdown-listen for kursdatoer. Bruk følgende plassholdere:<br>
+            - <code>[date]</code>: Dato(er) for kursdatoen<br>
+            - <code>[time]</code>: Tid(er) for kursdatoen<br>
+            - <code>[available_slots]</code>: Antall ledige plasser<br>
+            - <code>[taxonomies]</code>: Viser en liste over taksonomier valgt ovenfor som har en datospesifikk verdi for denne kursdatoen.<br>
+            <?php if (!empty($registered_taxonomies)): ?>
+                Du kan også bruke spesifikke taksonomi-plassholdere i formatet <code>[taxonomy_SLUG]</code> for å vise verdien for en spesifikk taksonomi (hvis datospesifikk verdi finnes, ellers kursspesifikk hvis datospesifikk ikke finnes, ellers tom). Tilgjengelige taksonomier:
+                <?php
+                $taxonomy_placeholders = [];
+                foreach ($registered_taxonomies as $slug => $name) {
+                    $taxonomy_placeholders[] = "<code>[taxonomy_{$slug}]</code> (" . esc_html($name) . ")";
+                }
+                echo implode(', ', $taxonomy_placeholders);
+                ?>
+            <?php endif; ?>
+            <br>Eksempel: <code>[date], [time] - [taxonomy_sted] ([available_slots] plasser)</code>
+        </p>
+        <?php
+    }
+
 
     /**
      * Render the enable emails field.
@@ -398,7 +442,8 @@ class AdminSettings {
      * Render the admin email message field.
      */
     public function renderAdminEmailMessageField(): void {
-        $value = get_option('course_manager_admin_email_message', "Hei,\n\nEn ny påmelding har blitt registrert for kurset \"[course_title]\".\n\nBestillerinformasjon:\n- Navn: [buyer_name]\n- E-post: [buyer_email]\n- Telefonnummer: [buyer_phone]\n- Firma: [buyer_company]\n- Gateadresse: [buyer_street_address]\n- Postnummer: [buyer_postal_code]\n- Poststed: [buyer_city]\n- Kommentarer/spørsmål: [buyer_comments]\n\nDeltakere ([participant_count]):\n[participants]\n\nTotal pris: [total_price] NOK\n\nBeste hilsener,\nKursadministrator-systemet");
+        $value = get_option('course_manager_admin_email_message', "Hei,\n\nEn ny påmelding har blitt registrert for kurset \"[course_title]\".\n\nBestillerinformasjon:\n- Navn: [buyer_name]\n- E-post: [buyer_email]\n- Telefonnummer: [buyer_phone]\n- Firma: [buyer_company]\n- Gateadresse: [buyer_street_address]\n- Postnummer: [buyer_postal_code]\n- Poststed: [buyer_city]\n- Kommentarer/spørsmål: [buyer_comments]\n\nDeltakere ([participant_count]):\n[participants]\n\nTotal pris: [total_price] NOK\n\nBeste hilsener,\nKursadministrator-systemet"
+        );
         ?>
         <textarea name="course_manager_admin_email_message" rows="5" cols="50"><?php echo esc_textarea($value); ?></textarea>
         <p class="description">Standard melding som sendes til administratoren ved nye påmeldinger. Bruk følgende tagger for å inkludere variabler:<br>

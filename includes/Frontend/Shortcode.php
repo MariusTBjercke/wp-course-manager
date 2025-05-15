@@ -557,6 +557,7 @@ class Shortcode {
         $pricePerParticipant = (int)get_post_meta($courseId, '_course_price', true);
         $taxonomies = get_option('course_manager_taxonomies', []); // Get defined taxonomies
         $selectedDropdownTaxonomies = get_option('course_manager_dropdown_taxonomies', []); // Get taxonomies to show in dropdown
+        $dropdownFormat = get_option('course_manager_dropdown_format', '[date] ([taxonomies]) (Ledige plasser: [available_slots])'); // Get the format pattern
 
 
         // Check if there are any course dates available
@@ -781,23 +782,34 @@ class Shortcode {
                                     // Only process and display if available
                                     if ($isAvailable):
                                         $courseDateDisplayString = DateFormatter::formatCourseDateDisplay($courseDate);
+                                        $courseDateTimeString = DateFormatter::formatCourseDateTime($courseDate); // Get time string
 
                                         // Get taxonomy data for this specific course date or fallback to course level
                                         $courseDateTaxonomies = $courseDate['taxonomies'] ?? [];
                                         $dateSpecificTaxonomyData = [];
-                                        $dropdownTaxonomyTextParts = []; // Array to build the text for the dropdown option
+                                        $dropdownTaxonomyTextParts = [];
 
                                         // Get registered plugin taxonomy slugs and the selected ones for the dropdown
                                         $pluginTaxonomySlugs = array_keys(get_option('course_manager_taxonomies', []));
                                         $selectedDropdownTaxonomies = get_option('course_manager_dropdown_taxonomies', []);
-                                        $allTaxonomies = get_option('course_manager_taxonomies', []); // Get display names
+                                        $allTaxonomies = get_option('course_manager_taxonomies', []);
 
-                                        // Iterate through all plugin taxonomies to get data for data attributes and dropdown text
+                                        // Prepare data for placeholders and data attributes
+                                        $placeholder_values = [
+                                            '[date]' => esc_html($courseDateDisplayString),
+                                            '[time]' => esc_html($courseDateTimeString),
+                                            '[available_slots]' => esc_html($capacityLimit !== null ? ($capacityLimit - $currentParticipants) : 'Ubegrenset'),
+                                        ];
+
+                                        // Iterate through all plugin taxonomies
                                         foreach ($pluginTaxonomySlugs as $slug) {
                                             $termsToDisplay = [];
+                                            $isDateSpecific = false;
+
+                                            // Check for date-specific terms first
                                             if (!empty($courseDateTaxonomies[$slug])) {
-                                                // Use date-specific terms if available
                                                 $termsToDisplay = $courseDateTaxonomies[$slug];
+                                                $isDateSpecific = true;
                                             } else {
                                                 // Otherwise, use course-specific terms
                                                 $courseTerms = get_the_terms($courseId, $slug);
@@ -823,23 +835,22 @@ class Shortcode {
                                             // Always add data attribute for all plugin taxonomies, even if empty, for JS to hide/show
                                             $dateSpecificTaxonomyData[$slug] = !empty($termNamesToDisplay) ? $termNamesToDisplay : ['Ikke spesifisert'];
 
+                                            // Add value for specific taxonomy placeholder [taxonomy_SLUG]
+                                            $placeholder_values["[taxonomy_{$slug}]"] = !empty($termNamesToDisplay) ? esc_html(implode(', ', $termNamesToDisplay)) : '';
 
-                                            // Add text for dropdown option ONLY if this taxonomy is selected for the dropdown AND has terms
+                                            // Add text for the general [taxonomies] placeholder ONLY if this taxonomy is selected for the dropdown AND has terms
                                             if (in_array($slug, $selectedDropdownTaxonomies) && !empty($termNamesToDisplay)) {
                                                 $taxonomyName = $allTaxonomies[$slug] ?? $slug; // Get display name from settings or use slug
                                                 $dropdownTaxonomyTextParts[] = esc_html($taxonomyName) . ': ' . esc_html(implode(', ', $termNamesToDisplay));
                                             }
                                         }
 
-                                        // Build the final dropdown option text
-                                        $optionText = esc_html($courseDateDisplayString);
-                                        if (!empty($dropdownTaxonomyTextParts)) {
-                                            $optionText .= ' (' . implode(', ', $dropdownTaxonomyTextParts) . ')';
-                                        }
+                                        // Build the final dropdown option text using the format pattern
+                                        $optionText = $dropdownFormat;
+                                        $placeholder_values['[taxonomies]'] = implode(', ', $dropdownTaxonomyTextParts); // Set value for [taxonomies] placeholder
 
-                                        // Add availability info
-                                        $optionText .= ' (Ledige plasser: ' . ($capacityLimit !== null ? ($capacityLimit - $currentParticipants) : 'Ubegrenset') . ')';
-
+                                        // Replace all placeholders in the format string
+                                        $optionText = str_replace(array_keys($placeholder_values), array_values($placeholder_values), $optionText);
 
                                         // Store date-specific info in data attributes (for JS below the dropdown)
                                         $dataAttributes = ' data-date-display="' . esc_attr($courseDateDisplayString) . '"';
