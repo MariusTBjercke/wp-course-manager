@@ -21,15 +21,13 @@ export default class CourseManager {
    * Initialize the CourseManager.
    */
   private init(): void {
-    document.addEventListener('DOMContentLoaded', () => {
-      this.findElements();
-      this.bindEvents();
+    this.findElements();
+    this.bindEvents();
 
-      // Automatically add the first participant on page load (for enrollment form)
-      if (document.querySelector('.cm-enrollment-form')) {
-        this.addParticipant();
-      }
-    });
+    // Automatically add the first participant on page load (for enrollment form)
+    if (document.querySelector('.cm-enrollment-form')) {
+      this.addParticipant();
+    }
   }
 
   /**
@@ -58,6 +56,7 @@ export default class CourseManager {
    * Bind events to filter elements.
    */
   private bindEvents(): void {
+    console.log('Binding events...');
     const { filterButton, resetButton, filterToggles } = this.elements;
 
     // Toggle dropdown visibility
@@ -155,6 +154,7 @@ export default class CourseManager {
    * Add a new participant entry to the form.
    */
   private addParticipant(): void {
+    console.log('Adding participant...');
     const participantList = document.getElementById('cm-participant-list') as HTMLDivElement;
     const index = this.participantCount;
     const participantNumber = index + 1;
