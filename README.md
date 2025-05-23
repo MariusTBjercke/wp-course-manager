@@ -23,9 +23,9 @@ A simple and flexible WordPress plugin for managing courses, displaying availabl
 
 ## Installation
 
-1. Clone this repository into your `wp-content/plugins/` directory:
+1. Clone the repository into your `wp-content/plugins/` directory:
    ```bash
-   git clone [https://github.com/MariusTBjercke/wp-course-manager.git](https://github.com/MariusTBjercke/wp-course-manager.git)
+   git clone https://github.com/MariusTBjercke/wp-course-manager.git
    ```
 2. Navigate to the plugin directory and install dependencies:
    ```bash
